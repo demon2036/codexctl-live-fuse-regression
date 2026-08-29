@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "sorairo-no-kobeya",
+  "name": "空色の小部屋",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "空色の標本室に、ひとつの集中を。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "SKY ROOM ONLINE",
+  "quote": "空色の小部屋",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.72,
+    "focusY": 0.48
+  },
+  "tuning": {
+    "tint": "#102a3a",
+    "overlayOpacity": 0.36,
+    "gradientBias": 0.04,
+    "sidebarOpacity": 0.44,
+    "composerOpacity": 0.76
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#102a3a",
+    "overlayOpacity": 0.36,
+    "gradientBias": 0.04,
+    "sidebarOpacity": 0.44,
+    "composerOpacity": 0.76
+  },
+  "colors": {
+    "background": "#102a3a",
+    "panel": "#19394a",
+    "panelAlt": "#244d61",
+    "accent": "#72d5ed",
+    "accentAlt": "#a5e9f5",
+    "secondary": "#6d86bd",
+    "highlight": "#f0c767",
+    "text": "#effbff",
+    "muted": "#b8d5df",
+    "line": "rgba(114, 213, 237, 0.30)"
+  }
+}

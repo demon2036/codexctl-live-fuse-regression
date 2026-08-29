@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "hoshi-no-kioku",
+  "name": "星の記憶と巡り合う",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "星の記憶をひらき、次の答えへ。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "CELESTIAL ARCHIVE ONLINE",
+  "quote": "星の記憶と巡り合う",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.76,
+    "focusY": 0.42
+  },
+  "tuning": {
+    "tint": "#071c3a",
+    "overlayOpacity": 0.45,
+    "gradientBias": 0.08,
+    "sidebarOpacity": 0.52,
+    "composerOpacity": 0.82
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#071c3a",
+    "overlayOpacity": 0.45,
+    "gradientBias": 0.08,
+    "sidebarOpacity": 0.52,
+    "composerOpacity": 0.82
+  },
+  "colors": {
+    "background": "#071c3a",
+    "panel": "#0d2a50",
+    "panelAlt": "#153969",
+    "accent": "#57cfe8",
+    "accentAlt": "#9ce9ef",
+    "secondary": "#7d83e8",
+    "highlight": "#f5d36b",
+    "text": "#f2f9ff",
+    "muted": "#b6cee5",
+    "line": "rgba(87, 207, 232, 0.30)"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "appearance" : "dark",
+  "art" : {
+    "focusX" : 0.71999999999999997,
+    "focusY" : 0.54000000000000004,
+    "safeArea" : "left",
+    "taskMode" : "ambient"
+  },
+  "brandSubtitle" : "FUZICHOCO WALLPAPER LIBRARY",
+  "colors" : {
+    "accent" : "#58d4cd",
+    "accentAlt" : "#79e7d3",
+    "background" : "#07191d",
+    "highlight" : "#f6d66b",
+    "line" : "rgba(88, 212, 205, 0.30)",
+    "muted" : "#a6c9c6",
+    "panel" : "#0b242a",
+    "panelAlt" : "#10343a",
+    "secondary" : "#37a7b5",
+    "text" : "#e9fbf8"
+  },
+  "id" : "yuugohan-tsuri",
+  "image" : "background.webp",
+  "name" : "ゆうごはん釣り",
+  "projectLabel" : "◉  选择项目",
+  "projectPrefix" : "选择项目 · ",
+  "quote" : "ゆうごはん釣り",
+  "schemaVersion" : 1,
+  "statusText" : "FISHING ROOM ONLINE",
+  "tagline" : "把安静的海装进工作台。",
+  "tuning" : {
+    "composerOpacity" : 0.76000000000000001,
+    "gradientBias" : -0.22,
+    "overlayOpacity" : 0.20999999999999999,
+    "sidebarOpacity" : 0.17999999999999999,
+    "tint" : "#07191D"
+  },
+  "tuningRecommended" : {
+    "appearance" : "dark",
+    "composerOpacity" : 0.76000000000000001,
+    "gradientBias" : -0.22,
+    "overlayOpacity" : 0.20999999999999999,
+    "sidebarOpacity" : 0.17999999999999999,
+    "tint" : "#07191d"
+  }
+}

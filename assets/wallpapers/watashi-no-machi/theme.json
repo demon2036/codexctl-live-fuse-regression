@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "watashi-no-machi",
+  "name": "わたしの街",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "都市の光を、作業台の向こうへ。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "MY CITY ONLINE",
+  "quote": "わたしの街",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.78,
+    "focusY": 0.48
+  },
+  "tuning": {
+    "tint": "#18252b",
+    "overlayOpacity": 0.42,
+    "gradientBias": 0.08,
+    "sidebarOpacity": 0.5,
+    "composerOpacity": 0.8
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#18252b",
+    "overlayOpacity": 0.42,
+    "gradientBias": 0.08,
+    "sidebarOpacity": 0.5,
+    "composerOpacity": 0.8
+  },
+  "colors": {
+    "background": "#18252b",
+    "panel": "#1f2b31",
+    "panelAlt": "#2c3b40",
+    "accent": "#ef8a46",
+    "accentAlt": "#f3bd69",
+    "secondary": "#5ea89d",
+    "highlight": "#ffd276",
+    "text": "#fff7ea",
+    "muted": "#c7d6d2",
+    "line": "rgba(239, 138, 70, 0.30)"
+  }
+}

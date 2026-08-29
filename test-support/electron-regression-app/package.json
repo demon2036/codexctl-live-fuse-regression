@@ -1,0 +1,5 @@
+{
+  "name": "codexctl-electron-regression-app",
+  "private": true,
+  "main": "main.cjs"
+}

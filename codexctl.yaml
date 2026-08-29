@@ -1,0 +1,14 @@
+schema: codexctl/project-policy/1
+
+launch:
+  defaultMode: remote-safe
+  injection: explicit
+  macOfficial: launch-services
+  officialCli: embedded
+
+environment:
+  persist: false
+
+relay:
+  proxy: null
+  noProxy: localhost,127.0.0.1,::1

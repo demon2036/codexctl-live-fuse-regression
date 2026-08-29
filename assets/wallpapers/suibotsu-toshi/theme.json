@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "suibotsu-toshi",
+  "name": "水没都市",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "沈んだ都市の上で、静かに未来を組み立てる。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "SUBMERGED CITY ONLINE",
+  "quote": "水没都市",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.76,
+    "focusY": 0.5
+  },
+  "tuning": {
+    "tint": "#031a35",
+    "overlayOpacity": 0.42,
+    "gradientBias": 0.06,
+    "sidebarOpacity": 0.5,
+    "composerOpacity": 0.82
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#031a35",
+    "overlayOpacity": 0.42,
+    "gradientBias": 0.06,
+    "sidebarOpacity": 0.5,
+    "composerOpacity": 0.82
+  },
+  "colors": {
+    "background": "#031a35",
+    "panel": "#082744",
+    "panelAlt": "#0d3859",
+    "accent": "#46c8df",
+    "accentAlt": "#81e4ed",
+    "secondary": "#277ab3",
+    "highlight": "#e8d779",
+    "text": "#effbff",
+    "muted": "#a9cada",
+    "line": "rgba(70, 200, 223, 0.30)"
+  }
+}
