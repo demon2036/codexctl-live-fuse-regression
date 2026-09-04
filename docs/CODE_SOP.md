@@ -97,10 +97,11 @@ Developer Prompt 的 `Next Base` 是版本化 one-shot。新 task 请求必须�
 ## 7. 安全与连接
 
 - 不带 `-c` 的启动必须使用官方 provider，显式清理旧 relay/provider 环境变量。
-- macOS official 与注入必须经 LaunchServices 零参数启动；禁止附加 `codex://launch`、CDP flag 或 DevTools pipe。
+- macOS official 与一次性 preload 注入必须经 LaunchServices 启动，official 保持零参数；`live start` 是唯一允许附加动态 loopback CDP flag 的长会话入口。
 - relay 只存在于单次 App 启动，不写入 config、runtime、日志或 Git。
 - 项目 YAML 只允许无凭据代理；任何启动环境都只能作用于单次启动请求，preload 参数必须在主进程启动期立即删除，禁止写入 shell、launchd 或 `config.toml`。
 - CDP 只绑定并连接 loopback，拒绝非 `app://`、avatar overlay 和不匹配 target id 的 endpoint。
+- live 配对或挂载失败只清理 controller 自己的 companion、socket 和记录，不终止仍可使用的 Desktop。
 - 只终止 controller 拥有且 PID、启动时间、命令均匹配的进程；未知实例保持不动并报告。
 - App 替换必须先快照并排空旧主进程的完整后代树，禁止旧 app-server 与新实例同时使用同一 Remote installation ID。
 - 用户 Prompt、Wallpaper 和主题包必须先做路径、类型、大小、稳定读取与内容校验。

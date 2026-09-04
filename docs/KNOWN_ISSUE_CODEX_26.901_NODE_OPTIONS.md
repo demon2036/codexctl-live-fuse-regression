@@ -1,8 +1,20 @@
 # Known issue: `codexctl live start` cannot pair with Codex 26.901
 
+## Status
+
+Fixed by `LIVE-CDP-FUSE-001`. Live mode now uses a dynamically allocated loopback
+CDP transport owned by the companion instead of loading a browser-process host with
+`NODE_OPTIONS`. Renderer actions use `Runtime.addBinding`, and navigation causes the
+desired revisions to be mounted again. Failed pairing no longer terminates the
+Desktop process that was launched.
+
+Verified against Codex/ChatGPT Desktop `26.901.22334`: live pairing completed,
+`status` returned `ready`, an App-originated plugin action committed, and the runtime
+was present again after `Page.reload`.
+
 ## Summary
 
-`codexctl live start` currently cannot establish its local live-host connection with
+The previous `codexctl live start` implementation could not establish its local live-host connection with
 Codex/ChatGPT Desktop `26.901.22334` on macOS. The App opens, but the expected Unix
 domain socket is never created. After the 20-second pairing deadline, `codexctl`
 reports `connect ENOENT` and terminates the App process that it just launched.
@@ -123,8 +135,7 @@ What is directly established is:
 
 ## Suggested repair boundaries
 
-This document intentionally does not implement a workaround. A safe fix should at
-least satisfy both boundaries below:
+The implemented repair satisfies both boundaries below:
 
 1. Do not rely on `NODE_OPTIONS --require` for a signed, packaged production App;
    replace it with a supported host/integration mechanism.
@@ -146,3 +157,7 @@ kill”。这不是代理、OAuth 或网络连接问题，也不是 App 自身�
 
 修复应同时处理两点：使用受支持的宿主通信/加载方式替代 `NODE_OPTIONS`
 注入；并在启动前增加兼容性检查，不支持时立即报错且不得关闭官方 App。
+
+当前实现已改为 companion 持有的动态 loopback CDP 通道，并通过 browser target
+事件处理页面重载。App 内操作通过 `Runtime.addBinding` 回传；配对失败只清理
+codexctl 自己的进程和记录，不再终止已启动的 Codex Desktop。

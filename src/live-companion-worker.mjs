@@ -12,6 +12,25 @@ function report(value) {
   });
 }
 
+function waitForLaunch(bootstrap, timeoutMs = 30_000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      process.removeListener("message", receive);
+      reject(new Error("live App launch identity timed out"));
+    }, timeoutMs);
+    const receive = (value) => {
+      if (!value || value.schema !== "codexctl-live-worker-launch/1"
+        || value.sessionId !== bootstrap.sessionId
+        || !Number.isSafeInteger(value.appPid) || value.appPid < 2
+        || value.debugPort !== bootstrap.debugPort) return;
+      clearTimeout(timer);
+      process.removeListener("message", receive);
+      resolve(value);
+    };
+    process.on("message", receive);
+  });
+}
+
 async function main() {
   let paired = false;
   process.once("disconnect", () => {
@@ -23,12 +42,19 @@ async function main() {
   const paths = resolvePaths({ ...process.env, CODEXCTL_HOME: bootstrap.controllerHome });
   const config = await loadConfig(paths);
   const prepared = await prepareLiveCompanion(paths, config, bootstrap);
+  const launched = waitForLaunch(bootstrap);
   report({
     catalogRevision: prepared.catalog.revision,
     phase: "ready",
     sessionId: bootstrap.sessionId,
   });
-  const live = await pairLiveCompanion({ bootstrap, paths, prepared });
+  const launch = await launched;
+  const live = await pairLiveCompanion({
+    appPid: launch.appPid,
+    bootstrap,
+    paths,
+    prepared,
+  });
   report({
     appPid: live.app.pid,
     companionPid: process.pid,

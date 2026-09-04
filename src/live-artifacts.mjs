@@ -10,8 +10,9 @@ import {
 import { loadPayload as loadWallpaperPayload } from "../vendor/wallpaper-lite/payload.mjs";
 
 const HOST_FILES = [
-  "live-host.cjs", "live-host-control.cjs", "live-host-renderer.cjs",
-  "live-host-server.cjs", "live-host-wallpaper.cjs",
+  "live-cdp-host.mjs", "live-host.cjs", "live-host-control.cjs",
+  "live-host-renderer.cjs", "live-host-server.cjs", "live-host-wallpaper.cjs",
+  "renderer-injection.mjs",
 ];
 
 export async function liveHostRevision(paths) {

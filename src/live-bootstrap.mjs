@@ -25,11 +25,14 @@ function absolute(value, label, maximum = 4096) {
 export function validateLiveBootstrap(value) {
   if (!exact(value, [
     "authToken", "cliSocketPath", "companionLogFile", "controllerHome", "createdAt",
-    "desktop", "hostRevision", "hostSocketPath", "schema", "sessionId",
+    "debugPort", "desktop", "hostRevision", "hostSocketPath", "schema", "sessionId",
+    "transport",
   ]) || value.schema !== "codexctl-live-bootstrap/1"
     || !TOKEN.test(String(value.authToken ?? "")) || !UUID.test(String(value.sessionId ?? ""))
     || Number.isNaN(Date.parse(value.createdAt))
-    || !exact(value.desktop, ["bundle", "executable", "identity"])) {
+    || !exact(value.desktop, ["bundle", "executable", "identity"])
+    || value.transport !== "cdp" || !Number.isInteger(value.debugPort)
+    || value.debugPort < 1024 || value.debugPort > 65535) {
     throw new Error("live bootstrap is invalid");
   }
   const desktop = {

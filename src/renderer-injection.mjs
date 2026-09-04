@@ -21,6 +21,9 @@ export class RendererSession {
     this.socket = null;
     this.sequence = 0;
     this.pending = new Map();
+    this.eventListeners = new Set();
+    this.closeListeners = new Set();
+    this.closed = false;
   }
 
   async open() {
@@ -53,7 +56,14 @@ export class RendererSession {
     let message;
     try { message = JSON.parse(String(event.data)); } catch { return; }
     const pending = this.pending.get(message.id);
-    if (!pending) return;
+    if (!pending) {
+      if (typeof message.method === "string") {
+        for (const listener of this.eventListeners) {
+          queueMicrotask(() => { try { listener(message); } catch {} });
+        }
+      }
+      return;
+    }
     this.pending.delete(message.id);
     clearTimeout(pending.timeout);
     if (message.error) pending.reject(new Error(message.error.message));
@@ -87,6 +97,8 @@ export class RendererSession {
   }
 
   close() {
+    if (this.closed) return;
+    this.closed = true;
     const socket = this.socket;
     this.socket = null;
     for (const pending of this.pending.values()) {
@@ -95,6 +107,24 @@ export class RendererSession {
     }
     this.pending.clear();
     try { socket?.close(); } catch {}
+    for (const listener of this.closeListeners) {
+      queueMicrotask(() => { try { listener(); } catch {} });
+    }
+    this.closeListeners.clear();
+    this.eventListeners.clear();
+  }
+
+  onEvent(listener) {
+    if (typeof listener !== "function") throw new TypeError("CDP event listener is required");
+    this.eventListeners.add(listener);
+    return () => this.eventListeners.delete(listener);
+  }
+
+  onClose(listener) {
+    if (typeof listener !== "function") throw new TypeError("CDP close listener is required");
+    if (this.closed) queueMicrotask(listener);
+    else this.closeListeners.add(listener);
+    return () => this.closeListeners.delete(listener);
   }
 }
 

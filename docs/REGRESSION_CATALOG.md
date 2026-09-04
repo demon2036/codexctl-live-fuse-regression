@@ -2,7 +2,7 @@
 
 > 此文件由 `npm run catalog` 从 `regression/catalog/` 生成；请勿手工维护条目。
 
-共 74 个必选 case：72 个 OpenSpec Scenario，2 个补充门禁。
+共 75 个必选 case：72 个 OpenSpec Scenario，3 个补充门禁。
 
 | Case ID | Capability | Scenario | 层级 | 平台 | 预算 | 执行入口 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -21,6 +21,7 @@
 | `INJECTION-ROLLBACK-OFFICIAL-004` | app-experience-regression | 半安装失败回退到干净官方实例 | L2 / L4 | all | — | npm run test:fast<br>npm run test:app |
 | `INJECTION-LIFECYCLE-STARTUP-NAVIGATION-001` | app-experience-regression | 补充质量门禁 | L1 / L4 | macos | — | npm run test:fast<br>npm run test:app |
 | `INJECTION-LIFECYCLE-PRELOAD-ASSET-CANONICAL-003` | app-experience-regression | 补充质量门禁 | L1 / L4 | macos | — | npm run test:fast<br>npm run test:app |
+| `LIVE-CDP-FUSE-001` | app-experience-regression | 补充质量门禁 | L1 / L4 | macos | — | npm run test:fast<br>npm run test:app |
 | `WALLPAPER-FIRST-VISIBLE-001` | app-experience-regression | 首次可交互时壁纸及时可见 | L1 / L3 / L4 | all | startup-visible | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `WALLPAPER-BOTTOM-COVERAGE-002` | app-experience-regression | Bottom panel 不再露出黑底 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `WALLPAPER-THEME-SEMANTICS-003` | app-experience-regression | Sidebar 与内容区保持主题语义 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |

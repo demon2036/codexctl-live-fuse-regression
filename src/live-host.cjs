@@ -15,8 +15,9 @@ if (BOOTSTRAP_FILE) {
 function hostRevision() {
   const hash = createHash("sha256");
   for (const name of [
-    "live-host.cjs", "live-host-control.cjs", "live-host-renderer.cjs",
-    "live-host-server.cjs", "live-host-wallpaper.cjs",
+    "live-cdp-host.mjs", "live-host.cjs", "live-host-control.cjs",
+    "live-host-renderer.cjs", "live-host-server.cjs", "live-host-wallpaper.cjs",
+    "renderer-injection.mjs",
   ]) hash.update(fs.readFileSync(path.join(__dirname, name)));
   return hash.digest("hex").slice(0, 24);
 }

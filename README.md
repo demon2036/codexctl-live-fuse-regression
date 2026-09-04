@@ -24,6 +24,11 @@ codexctl app --inject
   -> macOS: LaunchServices + 零参数 + 启动期一次 preload
   -> Linux/隔离测试: loopback CDP one-shot
   -> 验证 PID、revision 与性能合同，控制器退出
+
+codexctl live start
+  -> LaunchServices/官方可执行文件 + 动态 loopback CDP
+  -> companion 持有会话，页面导航后按 revision 重挂载
+  -> 不依赖 NODE_OPTIONS，不修改或重签官方 bundle
 ```
 
 新 session 的 Provider 指示器默认显示 `OpenAI`。这个隐式默认不会额外写入
@@ -249,8 +254,9 @@ npm run test:regression
 
 ## 安全边界
 
-- macOS official 与 preload 注入都必须使用 LaunchServices，App argv 为空，禁止 DevTools flag；
-- Linux/隔离测试的 CDP 只使用动态 loopback 端口，并验证 `app://` target 与 target id；
+- macOS official 与一次性 preload 注入都必须使用 LaunchServices；official 路径保持零参数、零 CDP；
+- Linux/隔离测试及 `live start` 的 CDP 只使用动态 loopback 端口，并验证 `app://` target、target id 与 WebSocket endpoint；
+- `live start` 不使用 `NODE_OPTIONS`，失败时只清理 companion/runtime，不终止已启动的 Desktop；
 - 进程操作必须同时匹配 PID、启动时间、命令和 controller 记录；
 - relay key 不进入 argv、配置、runtime、日志或提交；
 - 未知调试实例和其他 controller 的全局启动项不会被接管；

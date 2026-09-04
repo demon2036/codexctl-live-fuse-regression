@@ -14,8 +14,6 @@ import { newLiveIdentity } from "./live-protocol.mjs";
 import { inspectLiveSession, liveHostSocketPath, liveSocketPath } from "./live-session.mjs";
 import {
   listDesktopProcesses,
-  terminateDesktopProcess,
-  terminateProfileCrashHandlers,
 } from "./desktop-processes.mjs";
 import { recordManagedLaunch, removeManagedLaunch, waitForDesktopProcess } from "./launches.mjs";
 import { openPrivateLog } from "./logs.mjs";
@@ -81,6 +79,15 @@ async function spawnCompanion(paths, bootstrapFile, env) {
   });
   return {
     child,
+    launch({ appPid, debugPort, sessionId }) {
+      if (!child.connected) throw new Error("live companion IPC closed before App launch");
+      child.send({
+        appPid,
+        debugPort,
+        schema: "codexctl-live-worker-launch/1",
+        sessionId,
+      });
+    },
     next(timeoutMs = 30_000) {
       if (events.length) return Promise.resolve(events.shift());
       if (exit) return Promise.reject(new Error("live companion already exited"));
@@ -127,8 +134,9 @@ async function waitForLaunched(desktop, launched, isolatedProfile, timeoutMs = 1
 async function reconnectBootstrapAppPid(paths, bootstrap) {
   try {
     const current = await inspectLiveSession(paths, bootstrap.sessionId);
-    if (current.live) return current.session.app.pid;
+    if (current.live || current.processes.app) return current.session.app.pid;
   } catch {}
+  if (bootstrap.transport === "cdp") return null;
   let connection = null;
   try {
     connection = await connectLiveHost({
@@ -152,7 +160,8 @@ async function reconnectBootstrap(paths, desktop, conflicts) {
     try {
       const bootstrap = await readLiveBootstrap(path.join(paths.liveBootstrapsDir, entry.name));
       if (bootstrap.desktop.executable !== executable) return null;
-      if (!await fs.stat(bootstrap.hostSocketPath).then((stat) => stat.isSocket()).catch(() => false)) {
+      if (bootstrap.transport !== "cdp"
+        && !await fs.stat(bootstrap.hostSocketPath).then((stat) => stat.isSocket()).catch(() => false)) {
         return null;
       }
       const appPid = await reconnectBootstrapAppPid(paths, bootstrap);
@@ -171,6 +180,11 @@ async function reconnectCompanion(paths, desktop, conflicts, bootstrap, env) {
   try {
     const ready = validateWorkerEvent(await worker.next(), bootstrap.sessionId);
     if (ready.phase !== "ready") throw new Error(ready.message || "live companion prepare failed");
+    const appPid = await reconnectBootstrapAppPid(paths, bootstrap);
+    if (!appPid || !conflicts.some((row) => row.pid === appPid)) {
+      throw new Error("live companion rebind App identity is unavailable");
+    }
+    worker.launch({ appPid, debugPort: bootstrap.debugPort, sessionId: bootstrap.sessionId });
     const paired = validateWorkerEvent(await worker.next(), bootstrap.sessionId);
     if (paired.phase !== "paired" || paired.companionPid !== worker.child.pid
       || !conflicts.some((row) => row.pid === paired.appPid)) {
@@ -234,27 +248,30 @@ export async function startLiveApp({
   const bootstrapFilename = liveBootstrapFile(paths, identity.sessionId);
   const desktopIdentityPath = await fs.realpath(desktop.bundle ?? desktop.executable)
     .catch(() => desktop.bundle ?? desktop.executable);
-  const bootstrap = {
-    ...identity,
-    cliSocketPath: liveSocketPath(paths, identity.sessionId),
-    companionLogFile: paths.liveCompanionLogFile,
-    controllerHome: paths.home,
-    createdAt: new Date().toISOString(),
-    desktop: {
-      bundle: desktop.bundle,
-      executable: await fs.realpath(desktop.executable).catch(() => desktop.executable),
-      identity: `${desktop.bundle ? "bundle" : "package"}:${desktopIdentityPath}`,
-    },
-    hostRevision: await liveHostRevision(paths),
-    hostSocketPath: liveHostSocketPath(paths, identity.sessionId),
-    schema: "codexctl-live-bootstrap/1",
-  };
+  const hostRevision = await liveHostRevision(paths);
   const plan = await planLiveAppLaunch(config, paths, relay, bootstrapFilename, {
     hidden: options.hidden,
     isolatedProfile,
     proxyServer: options.proxyServer,
     officialCliSource: options.officialCliSource,
   }, env, platform);
+  const bootstrap = {
+    ...identity,
+    cliSocketPath: liveSocketPath(paths, identity.sessionId),
+    companionLogFile: paths.liveCompanionLogFile,
+    controllerHome: paths.home,
+    createdAt: new Date().toISOString(),
+    debugPort: plan.debugPort,
+    desktop: {
+      bundle: desktop.bundle,
+      executable: await fs.realpath(desktop.executable).catch(() => desktop.executable),
+      identity: `${desktop.bundle ? "bundle" : "package"}:${desktopIdentityPath}`,
+    },
+    hostRevision,
+    hostSocketPath: liveHostSocketPath(paths, identity.sessionId),
+    schema: "codexctl-live-bootstrap/1",
+    transport: plan.liveTransport,
+  };
   let worker = null;
   let processInfo = null;
   let record = null;
@@ -267,6 +284,11 @@ export async function startLiveApp({
     const launched = await launchApp(plan);
     processInfo = await waitForLaunched(desktop, launched, isolatedProfile);
     if (!processInfo) throw new Error("live App process did not remain running");
+    worker.launch({
+      appPid: processInfo.pid,
+      debugPort: bootstrap.debugPort,
+      sessionId: identity.sessionId,
+    });
     const paired = validateWorkerEvent(await worker.next(), identity.sessionId);
     if (paired.phase === "error") throw new Error(paired.message);
     if (paired.phase !== "paired" || paired.appPid !== processInfo.pid
@@ -290,13 +312,12 @@ export async function startLiveApp({
   } catch (error) {
     await terminateCompanion(worker?.child).catch(() => {});
     if (processInfo) {
-      await terminateDesktopProcess(processInfo, desktop, 5000).catch(() => false);
-      if (isolatedProfile) {
-        await terminateProfileCrashHandlers(isolatedProfile, desktop).catch(() => []);
-      }
       await removeManagedLaunch(paths, processInfo.pid).catch(() => {});
     }
     await removeLiveBootstrap(paths, identity.sessionId, identity.authToken).catch(() => {});
+    if (processInfo && error instanceof Error) {
+      error.message += `; Codex App PID ${processInfo.pid} 保持运行，codexctl 未终止它`;
+    }
     throw error;
   }
 }
