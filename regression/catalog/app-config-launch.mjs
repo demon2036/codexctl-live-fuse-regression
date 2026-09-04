@@ -33,4 +33,11 @@ export const appConfigLaunchCases = Object.freeze([
     ["L1", "L4"],
     ["macos"],
   ]),
+  defineSupplemental(CAPABILITY, [
+    "LIVE-CDP-FUSE-001",
+    "live 会话兼容禁用 NODE_OPTIONS 的 Electron App",
+    null,
+    ["L1", "L4"],
+    ["macos"],
+  ]),
 ]);

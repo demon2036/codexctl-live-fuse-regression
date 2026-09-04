@@ -10,7 +10,9 @@
     state.liveActionSequence += 1;
     state.liveActionPending = `${operation}:${state.liveActionSequence}`;
     renderOpenLiveControlMenu();
-    window.location.href = url.href;
+    const cdpBinding = window.__codexctlLiveAction;
+    if (typeof cdpBinding === "function") cdpBinding(url.href);
+    else window.location.href = url.href;
     return true;
   };
 

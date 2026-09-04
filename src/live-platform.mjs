@@ -1,6 +1,7 @@
 import path from "node:path";
 import { ConfigError } from "./errors.mjs";
 import { planAppLaunch } from "./platform.mjs";
+import { allocateLoopbackPort } from "./ports.mjs";
 
 export async function planLiveAppLaunch(
   config,
@@ -22,14 +23,19 @@ export async function planLiveAppLaunch(
     officialCliSource: options.officialCliSource,
     inject: false,
   }, env, platform);
+  const debugPort = await allocateLoopbackPort(options.debugPort ?? config.app.debugPort);
   return {
     ...plan,
-    environment: {
-      ...plan.environment,
-      CODEXCTL_LIVE_BOOTSTRAP: bootstrapFile,
-      NODE_OPTIONS: `--require=${JSON.stringify(paths.liveHostHook)}`,
-    },
+    argv: [
+      ...plan.argv,
+      "--remote-debugging-address=127.0.0.1",
+      `--remote-debugging-port=${debugPort}`,
+    ],
+    debugPort,
+    injectionEnabled: true,
+    injectionTransport: "cdp-live",
     liveBootstrapFile: bootstrapFile,
     liveHost: true,
+    liveTransport: "cdp",
   };
 }

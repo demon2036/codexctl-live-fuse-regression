@@ -3,6 +3,7 @@ import { startLiveCompanionCore } from "./live-companion-core.mjs";
 import { desktopCommandMatches, readProcessIdentity } from "./desktop-processes.mjs";
 import { LiveHostAdapter } from "./live-host-adapter.mjs";
 import { connectLiveHost } from "./live-host-client.mjs";
+import { connectLiveCdpHost } from "./live-cdp-host.mjs";
 import { LiveSlotManager } from "./live-state.mjs";
 import { LivePluginService } from "./live-plugin-service.mjs";
 import { inspectLiveSession, removeLiveSession } from "./live-session.mjs";
@@ -44,17 +45,20 @@ function retainedState(hostStatus, prepared, sessionId) {
 }
 
 export async function pairLiveCompanion({
+  appPid,
   bootstrap,
   paths,
   prepared,
   readProcess = readProcessIdentity,
 }) {
-  const connection = await connectLiveHost({
-    authToken: bootstrap.authToken,
-    hostRevision: bootstrap.hostRevision,
-    sessionId: bootstrap.sessionId,
-    socketPath: bootstrap.hostSocketPath,
-  });
+  const connection = bootstrap.transport === "cdp"
+    ? await connectLiveCdpHost({ appPid, port: bootstrap.debugPort })
+    : await connectLiveHost({
+      authToken: bootstrap.authToken,
+      hostRevision: bootstrap.hostRevision,
+      sessionId: bootstrap.sessionId,
+      socketPath: bootstrap.hostSocketPath,
+    });
   let core = null;
   let service = null;
   let releaseEvents = () => {};

@@ -18,7 +18,7 @@ import { commandLive, readLiveStatus } from "./live-command.mjs";
 const HELP = `codexctl — Codex Desktop 官方启动、一次性注入与 live 会话控制器（macOS / Linux）
 
   codexctl live start [--isolated PATH] [--proxy-server=URL]
-      一次启动官方 App、薄宿主和会话伴随程序；之后 on/off 在同一 App PID 生效，无 CDP。
+      通过仅限 loopback 的 CDP 启动 App 和会话伴随程序；之后 on/off 在同一 App PID 生效。
 
   codexctl live status [--json]
   codexctl live on|off
@@ -208,7 +208,7 @@ async function commandStatus(paths, args) {
     : "未加载（explicit one-shot）"}；后台 watcher/supervisor：无；CDP：${status.port
     ? `127.0.0.1:${status.port}` : "未分配（macOS preload 不需要）"}`);
   console.log(status.live.managed
-    ? `live：ready（App PID ${status.live.app.pid}，companion PID ${status.live.companion.pid}，无 CDP）`
+    ? `live：ready（App PID ${status.live.app.pid}，companion PID ${status.live.companion.pid}，loopback CDP）`
     : "live：unmanaged（不会接管当前 App）");
   console.log(`项目策略：${paths.projectPolicyFile}`);
   console.log(`配置：${status.config}`);

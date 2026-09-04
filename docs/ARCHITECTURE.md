@@ -9,6 +9,8 @@ codexctl app             -> LaunchServices / official -> Remote-safe
 codexctl app --inject    -> immutable runtime -> full process boundary
                          -> macOS LaunchServices preload / Linux loopback CDP
                          -> one-shot modules -> exact receipt -> controller exits
+codexctl live start      -> dynamic loopback CDP -> persistent companion
+                         -> navigation-aware mount/reload -> same App PID
 ```
 
 配置命令只提交 config 与对应 runtime，不热改当前 renderer。`app --inject` 完整替换并注入；`app` 把受管注入实例完整替换为官方状态。即使 DOM cleanup 看似成功，当前进程也不会被重新标记为“干净官方”，因为 JS heap、框架对象、样式与 compositor 缓存无法由局部清理证明已恢复。
@@ -67,6 +69,24 @@ Hook 严格读取当前不可变 generation 的 spec，立即从 `process.env` �
 
 每个 session 只执行安装和 diagnostics，随后关闭 WebSocket。没有 browser-level discovery watcher、Page reload listener 或健康文件刷新。
 
+## Live CDP compatibility host
+
+Codex Desktop `26.901` 禁用了 Electron 的 `EnableNodeOptionsEnvironmentVariable`
+fuse，因此 live 模式不再通过 `NODE_OPTIONS=--require` 向 Electron browser
+进程加载 host。`src/live-platform.mjs` 为 `live start` 分配动态 loopback 端口，
+companion 通过 browser-level CDP target 事件发现 `app://` renderer，并把它包装成
+与 `LiveHostRenderer` 相同的最小执行接口。
+
+renderer 导航会清空旧 document 的实际 revision；新 document 完成加载后，host
+按 desired revision 重挂载。App 内 live 菜单使用 `Runtime.addBinding` 的
+`__codexctlLiveAction` 回传严格校验的操作，不触发自定义 scheme 导航。HTTP 与
+WebSocket 地址都必须匹配同一个 `127.0.0.1` 动态端口，非 `app://` target、avatar
+overlay、非法 target id 和非 loopback endpoint 在连接前被拒绝。
+
+live 配对失败时，launcher 只关闭 companion、移除自己的 bootstrap/session 和
+managed record。刚启动的 Desktop 保持运行，并在错误中报告 PID；这条安全边界
+防止集成失败再次表现成 Codex App 被自动 kill。
+
 ## Prompt / Context
 
 Prompt/Context renderer 被拆成小型职责片段：
@@ -108,7 +128,7 @@ Wallpaper 由三个小模块组成：
 
 ## 连接隔离
 
-macOS official 与 preload 模式都经 LaunchServices 启动且不传 argv。两者都锁定 ChatGPT.app 内置 CLI，禁止从 PATH 换入不同版本，以保持 Remote/Browser 的 app-server 协议和 presence 注册一致。preload 的环境只属于这一次启动请求，hook 读取后立即从 Node 环境删除，子 app-server 不继承；它不写 shell、launchd 或用户配置。Relay 只在单次直接启动的子进程环境中存在；key 通过指定环境变量读取，不进入 argv。Bridge 只在官方 CLI 对匹配 initialize 返回成功后写入短期 handshake，launcher 验证后立即删除。`codexctl.yaml` 允许声明无凭据代理，但硬性禁止持久化环境。
+macOS official 与一次性 preload 模式都经 LaunchServices 启动；两者都锁定 ChatGPT.app 内置 CLI，禁止从 PATH 换入不同版本，以保持 Remote/Browser 的 app-server 协议和 presence 注册一致。official 路径保持零参数；live 路径仅附加 loopback remote-debugging 参数，不传 bootstrap 或凭据。preload 的环境只属于一次性启动请求，hook 读取后立即从 Node 环境删除，子 app-server 不继承；它不写 shell、launchd 或用户配置。Relay 只在单次直接启动的子进程环境中存在；key 通过指定环境变量读取，不进入 argv。Bridge 只在官方 CLI 对匹配 initialize 返回成功后写入短期 handshake，launcher 验证后立即删除。`codexctl.yaml` 允许声明无凭据代理，但硬性禁止持久化环境。
 
 ## 代码边界
 

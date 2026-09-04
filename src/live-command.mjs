@@ -90,7 +90,7 @@ async function commandStart(paths, args) {
   const action = result.action === "reconnected" ? "已重连" : result.action === "reused"
     ? "已在运行" : "已启动";
   console.log(`${action} live Codex Desktop：App PID ${result.processInfo.pid}，伴随程序 PID ${result.companionPid}。`);
-  console.log(`session ${result.sessionId} · host ${result.hostRevision} · 无 CDP · 官方 bundle 未修改。`);
+  console.log(`session ${result.sessionId} · host ${result.hostRevision} · loopback CDP · 官方 bundle 未修改。`);
 }
 
 async function commandStatus(paths, args) {
