@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Codex Regression Fixture</title><style>
+html, body { margin: 0; width: 100%; min-height: 100%; background: rgb(17, 17, 17); color: #eee; }
+#root { display: flex; height: 100vh; min-height: 100vh; overflow: hidden; }
+#sidebar { box-sizing: border-box; flex: 0 0 280px; height: 100vh; overflow-y: auto; background: rgb(17, 17, 17); }
+#main { display: flex; flex: 1 1 0%; height: 100vh; min-width: 0; background: rgb(17, 17, 17); }
+#layout { display: flex; flex: 1 1 auto; flex-direction: column; height: 100vh; min-width: 0; }
+#messages { flex: 1 1 auto; min-height: 300px; overflow: auto; background: rgb(17, 17, 17); }
+#bottom, #bottom-surface { background: rgb(17, 17, 17); }
+#bottom { flex: 0 0 auto; min-height: 74px; }
+#composer-footer { box-sizing: border-box; display: flex; align-items: flex-start; min-height: 68px; padding: 10px 520px 10px 24px; position: relative; }
+#composer { box-sizing: border-box; min-height: 42px; min-width: 0; flex: 1 1 auto; padding: 10px; position: relative; overflow: visible; background: rgb(17, 17, 17); }
+#permission { flex: 0 0 100px; width: 100px; height: 32px; margin-left: 10px; }
+#native-controls { position: absolute; top: 10px; right: 24px; display: flex; align-items: center; gap: 8px; height: 36px; }
+#native-controls button { height: 32px; }
+#native-context { width: 92px; }
+#native-model { width: 112px; }
+#native-mic, #native-send { width: 38px; }
+.native-skill-menu { box-sizing: border-box; position: absolute; z-index: 50; left: 10px; bottom: calc(100% + 10px); display: none; width: 230px; height: 104px; padding: 12px; border-radius: 10px; background: rgb(238, 238, 238); color: rgb(24, 24, 24); }
+.native-skill-menu[data-open="true"] { display: block; }
+#stale-composer-footer { box-sizing: border-box; position: fixed; z-index: -1; top: 88px; left: 18px; display: none; align-items: center; width: 620px; height: 52px; padding: 8px; opacity: 0; pointer-events: none; }
+#stale-composer { flex: 1 1 auto; height: 36px; }
+#stale-permission { flex: 0 0 100px; width: 100px; height: 32px; }
+.session { box-sizing: border-box; height: 34px; padding: 8px 12px; }
+.thread-scroll-container .bg-gradient-to-t.from-surface.via-surface {
+  background-image: linear-gradient(to top, #111 0%, #111 50%, transparent 100%);
+}
+</style></head><body>
+<footer id="stale-composer-footer" data-composer-footer-responsive="true" aria-hidden="true">
+  <section id="stale-composer" data-codex-composer="true"></section>
+  <button id="stale-permission" data-composer-navigation-target="permissions">Old permissions</button>
+</footer>
+<div id="root">
+  <aside id="sidebar" class="app-shell-left-panel" data-app-action-sidebar-scroll></aside>
+  <section id="main" data-app-shell-main-surface><main id="layout" data-app-shell-main-content-layout>
+    <div id="messages" class="thread-scroll-container bg-surface">
+      <div id="thread-bottom-fade" class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-surface via-surface"></div>
+    </div>
+    <div id="bottom" data-app-shell-focus-area="bottom-panel"><div id="bottom-surface" class="bg-surface">
+      <footer id="composer-footer" data-composer-footer-responsive="true">
+        <section id="composer" class="composer-surface-chrome" data-composer-layout data-codex-composer="true" contenteditable="true">
+          <div id="native-skill-menu" class="native-skill-menu" role="listbox">Skills suggestions</div>
+        </section>
+        <button id="permission" data-composer-navigation-target="permissions">Permissions</button>
+        <div id="native-controls">
+          <button id="native-context" data-composer-navigation-target="native-context" title="Context usage">Context</button>
+          <button id="native-model" data-composer-navigation-target="model">Model</button>
+          <button id="native-mic" data-composer-navigation-target="microphone">Mic</button>
+          <button id="native-send" data-composer-navigation-target="send">Send</button>
+        </div>
+      </footer>
+    </div></div>
+  </main></section>
+</div><script src="app://-/renderer.js"></script></body></html>

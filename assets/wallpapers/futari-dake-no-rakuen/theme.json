@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "futari-dake-no-rakuen",
+  "name": "二人だけの楽園",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "水と木漏れ日の楽園を、静かな背景に。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "PRIVATE PARADISE ONLINE",
+  "quote": "二人だけの楽園",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.66,
+    "focusY": 0.46
+  },
+  "tuning": {
+    "tint": "#062c32",
+    "overlayOpacity": 0.4,
+    "gradientBias": 0.06,
+    "sidebarOpacity": 0.48,
+    "composerOpacity": 0.8
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#062c32",
+    "overlayOpacity": 0.4,
+    "gradientBias": 0.06,
+    "sidebarOpacity": 0.48,
+    "composerOpacity": 0.8
+  },
+  "colors": {
+    "background": "#062c32",
+    "panel": "#0b3a3e",
+    "panelAlt": "#115056",
+    "accent": "#58d7cf",
+    "accentAlt": "#88eee0",
+    "secondary": "#4d88c9",
+    "highlight": "#f1d16c",
+    "text": "#effffb",
+    "muted": "#aed4cf",
+    "line": "rgba(88, 215, 207, 0.30)"
+  }
+}

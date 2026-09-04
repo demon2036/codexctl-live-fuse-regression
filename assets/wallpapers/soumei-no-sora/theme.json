@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "soumei-no-sora",
+  "name": "奏鳴の宙",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "星空の聖堂に、静かな旋律を。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "CELESTIAL SONATA ONLINE",
+  "quote": "奏鳴の宙",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.72,
+    "focusY": 0.46
+  },
+  "tuning": {
+    "tint": "#06183b",
+    "overlayOpacity": 0.46,
+    "gradientBias": 0.08,
+    "sidebarOpacity": 0.54,
+    "composerOpacity": 0.84
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#06183b",
+    "overlayOpacity": 0.46,
+    "gradientBias": 0.08,
+    "sidebarOpacity": 0.54,
+    "composerOpacity": 0.84
+  },
+  "colors": {
+    "background": "#06183b",
+    "panel": "#0b2850",
+    "panelAlt": "#123c69",
+    "accent": "#52cce5",
+    "accentAlt": "#8fe6ef",
+    "secondary": "#6d68c4",
+    "highlight": "#eacb69",
+    "text": "#f4f7ff",
+    "muted": "#b6c6dc",
+    "line": "rgba(82, 204, 229, 0.30)"
+  }
+}

@@ -1,0 +1,168 @@
+name: regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    name: L1-L3 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check
+      - run: npm test
+      - run: npm run test:browser
+
+  app-l4:
+    name: L4 isolated Electron A/B
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CODEXCTL_TEST_ELECTRON_CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Run isolated App regression
+        run: xvfb-run -a npm run test:app
+      - name: Upload allowlisted evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-l4-${{ github.sha }}
+          path: regression-results/app-*/summary.json
+          if-no-files-found: error
+          retention-days: 7
+
+  performance-l4:
+    name: L4 full performance A/B
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CODEXCTL_TEST_ELECTRON_CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Run full performance regression
+        run: xvfb-run -a npm run test:performance
+      - name: Upload allowlisted performance summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-l4-${{ github.sha }}
+          path: regression-results/performance-*/summary.json
+          if-no-files-found: error
+          retention-days: 7
+
+  performance-components-l4:
+    name: L4 component performance (${{ matrix.component }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [controls, wallpaper]
+    env:
+      CODEXCTL_TEST_ELECTRON_CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Run isolated component CPU matrix
+        run: xvfb-run -a node scripts/performance-component-regression.mjs --component ${{ matrix.component }}
+      - name: Upload allowlisted component summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-component-${{ matrix.component }}-${{ github.sha }}
+          path: regression-results/performance-component-*/summary.json
+          if-no-files-found: error
+          retention-days: 7
+
+  linux-l5:
+    name: L5 actual Linux package
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CODEXCTL_TEST_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install official ChatGPT package and virtual display
+        run: |
+          curl --fail --location --retry 3 \
+            --output /tmp/chatgpt-amd64.deb \
+            https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_amd64.deb
+          sudo apt-get update
+          sudo apt-get install -y xvfb /tmp/chatgpt-amd64.deb
+      - name: Resolve installed executable
+        run: |
+          codexctl_app_path=""
+          for candidate in /usr/lib/chatgpt/ChatGPT /usr/lib64/chatgpt/ChatGPT /opt/chatgpt/ChatGPT; do
+            if [ -x "$candidate" ]; then codexctl_app_path="$candidate"; break; fi
+          done
+          if [ -z "$codexctl_app_path" ]; then codexctl_app_path="$(command -v chatgpt || true)"; fi
+          test -x "$codexctl_app_path"
+          echo "CODEXCTL_TEST_LINUX_APP=$codexctl_app_path" >> "$GITHUB_ENV"
+      - name: Run actual package L5
+        run: xvfb-run -a npm run test:platform -- --json
+      - name: Upload revision-bound platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-l5-${{ github.sha }}
+          path: regression-results/platform-evidence/**/linux.json
+          if-no-files-found: error
+          retention-days: 7
+
+  macos-l5-capability:
+    name: L5 macOS capability declaration
+    runs-on: macos-15
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record hosted-runner capability honestly
+        run: |
+          mkdir -p regression-results/platform-capability
+          if [ -d /Applications/ChatGPT.app ] && [ -x /Applications/ChatGPT.app/Contents/Resources/codex ]; then
+            status=available
+            reason=app-present
+          else
+            status=unverified
+            reason=actual-app-or-permissions-missing
+          fi
+          printf '{"schema":"codexctl-platform-capability/1","platform":"macos","status":"%s","reasonCode":"%s"}\n' \
+            "$status" "$reason" > regression-results/platform-capability/macos.json
+          cat regression-results/platform-capability/macos.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-capability-${{ github.sha }}
+          path: regression-results/platform-capability/macos.json
+          retention-days: 7

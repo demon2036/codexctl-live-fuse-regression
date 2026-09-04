@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "seitou-ni-oyogu",
+  "name": "青透に泳ぐ",
+  "brandSubtitle": "FUZICHOCO WALLPAPER LIBRARY",
+  "tagline": "透き通る青のアトリエで、思考を泳がせる。",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "AQUATIC ATELIER ONLINE",
+  "quote": "青透に泳ぐ",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.78,
+    "focusY": 0.45
+  },
+  "tuning": {
+    "tint": "#09293b",
+    "overlayOpacity": 0.36,
+    "gradientBias": 0.04,
+    "sidebarOpacity": 0.44,
+    "composerOpacity": 0.76
+  },
+  "tuningRecommended": {
+    "appearance": "dark",
+    "tint": "#09293b",
+    "overlayOpacity": 0.36,
+    "gradientBias": 0.04,
+    "sidebarOpacity": 0.44,
+    "composerOpacity": 0.76
+  },
+  "colors": {
+    "background": "#09293b",
+    "panel": "#12394d",
+    "panelAlt": "#1c5068",
+    "accent": "#6bd7eb",
+    "accentAlt": "#a1ecf3",
+    "secondary": "#8b78c6",
+    "highlight": "#f0c467",
+    "text": "#f0fbff",
+    "muted": "#b7d6df",
+    "line": "rgba(107, 215, 235, 0.30)"
+  }
+}

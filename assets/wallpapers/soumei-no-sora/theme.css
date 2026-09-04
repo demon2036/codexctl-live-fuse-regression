@@ -1,0 +1,14 @@
+[data-ds-part="root"] {
+  color: var(--ds-theme-color-text);
+}
+
+[data-ds-part="composer"] {
+  background-color: rgba(11, 40, 80, 0.78);
+  border-color: rgba(82, 204, 229, 0.30);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+[data-ds-part="sidebar"] {
+  background-color: rgba(6, 24, 59, 0.70);
+  backdrop-filter: blur(16px) saturate(1.06);
+}
