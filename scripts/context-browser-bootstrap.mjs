@@ -103,7 +103,8 @@ export function contextBrowserBootstrap(encodedPayload) {
       if (value) return value;
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    throw new Error("Timed out waiting for " + label);
+    throw new Error("Timed out waiting for "
+      + (typeof label === "function" ? label() : label));
   };
   const recordNative = (api, threadId) => api.recordThreadFromResult(
     { thread: { id: threadId } },

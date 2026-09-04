@@ -58,6 +58,7 @@ async function existingCanBeReused(
     return { reusable: false, record };
   }
   if (record) {
+    if (record.live?.enabled) return { reusable: false, record };
     // A renderer that has ever hosted private injection is never reused as a
     // transaction target. Even a correct DOM cleanup cannot reset Chromium's
     // JS heap, style/compositor caches, patched client objects, or detached

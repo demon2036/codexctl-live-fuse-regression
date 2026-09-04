@@ -56,6 +56,8 @@
       .map(buttonVisualState);
     const providerIndicators = [...document.querySelectorAll('[data-codex-provider-indicator="true"]')]
       .map(buttonVisualState);
+    const liveButtons = [...document.querySelectorAll('[data-codex-live-control-trigger="true"]')]
+      .map(buttonVisualState);
     const provider = currentSessionProvider();
     if (threadId) reconcilePendingContextVerification(threadId);
     return {
@@ -115,6 +117,7 @@
       features: {
         prompt: featureEnabled("prompt"),
         context: featureEnabled("context"),
+        provider: featureEnabled("provider"), live: featureEnabled("live"),
       },
       contextSwitching: Boolean(threadId && state.contextSwitches.has(threadId)),
       queuedContextSwitch: (() => {
@@ -133,10 +136,12 @@
       contextButtonCount: contextButtons.length,
       usageButtonCount: usageButtons.length,
       providerIndicatorCount: providerIndicators.length,
+      liveControlCount: liveButtons.length,
       promptButtons,
       contextButtons,
       usageButtons,
       providerIndicators,
+      liveButtons,
       menuOpen: Boolean(state.menu),
       currentContextSwitch: threadId ? contextSwitchForThread(threadId) : null,
       lastTransform: state.lastTransform,
@@ -159,7 +164,8 @@
     updateConfiguredProfiles();
     installStyle();
     scheduleEnsure();
-    probeManager();
+    if (businessFeaturesEnabled()) probeManager();
+    else detachManagerPatch();
     return diagnostics();
   };
 
@@ -180,7 +186,7 @@
       && !document.querySelector('[data-codex-context-window-trigger="true"]');
     const usageMissing = featureEnabled("context") && currentConversationId(context?.composer)
       && !document.querySelector('[data-codex-context-usage-trigger="true"]');
-    const providerMissing = (featureEnabled("prompt") || featureEnabled("context"))
+    const providerMissing = featureEnabled("provider")
       && !document.querySelector('[data-codex-provider-indicator="true"]');
     if (!context || promptMissing || contextMissing || usageMissing || providerMissing) state.navigationHandler?.();
     invalidateUsageAnalysis(currentConversationId());
@@ -238,15 +244,19 @@
       try { request.reject(new Error("Prompt controller stopped")); } catch {}
     }
     state.bridgeRequests.clear();
-    syncControlAnchor();
     document.getElementById(STYLE_ID)?.remove();
     state.controlHost?.remove();
     state.controlHost = null;
     state.controlComposer = null;
+    state.menuFallbackButton = null;
+    for (const overlay of document.querySelectorAll('[data-codex-control-overlay="true"]')) {
+      overlay.remove();
+    }
     for (const button of document.querySelectorAll('[data-codex-base-prompt-trigger="true"]')) button.remove();
     for (const button of document.querySelectorAll('[data-codex-context-window-trigger="true"]')) button.remove();
     for (const button of document.querySelectorAll('[data-codex-context-usage-trigger="true"]')) button.remove();
     for (const indicator of document.querySelectorAll('[data-codex-provider-indicator="true"]')) indicator.remove();
+    for (const button of document.querySelectorAll('[data-codex-live-control-trigger="true"]')) button.remove();
     document.removeEventListener("pointerdown", onDocumentPointerDown, true);
     document.removeEventListener("keydown", onDocumentKeyDown, true);
     window.removeEventListener("resize", onWindowResize);
@@ -256,20 +266,7 @@
       window.removeEventListener("hashchange", state.navigationHandler);
       state.navigationHandler = null;
     }
-    const client = state.manager?.requestClient;
-    const patch = client?.[PATCH_KEY];
-    if (patch && typeof patch === "object") {
-      try { patch.removeNotificationRepair?.(); } catch {}
-      patch.notificationRepairAttached = false;
-      patch.removeNotificationRepair = null;
-      if (typeof patch.originalSendRequest === "function") client.sendRequest = patch.originalSendRequest;
-      if (typeof patch.originalPrewarmThreadStart === "function") {
-        client.prewarmThreadStart = patch.originalPrewarmThreadStart;
-      }
-      try { delete client[PATCH_KEY]; } catch {}
-    }
-    state.manager = null;
-    state.managerStatus = "stopped";
+    detachManagerPatch("stopped");
     if (window[STATE_KEY] === api) delete window[STATE_KEY];
   };
 
@@ -278,6 +275,7 @@
     updateConfig,
     diagnostics,
     cleanup,
+    setLiveStatus: setLiveControlStatus,
     resolveBridge,
     currentConversationContext,
     currentConversationId,
@@ -355,9 +353,9 @@
     installStyle();
     document.addEventListener("pointerdown", onDocumentPointerDown, true);
     document.addEventListener("keydown", onDocumentKeyDown, true);
-    // The control host is a body-level sibling of React's root. React can
-    // reconcile the composer on every keypress without deleting our buttons.
-    // No MutationObserver, polling loop, or typing-path callback is installed.
+    // The host stays outside React. One owner-scoped observer only repairs
+    // native footer replacement; composer typing mutations are filtered out.
+    // There is no document-wide observer or polling loop.
     window.addEventListener("resize", onWindowResize, { passive: true });
     state.navigationHandler = (event) => {
       state.uiMetrics.navigationRepairs += 1;
@@ -371,7 +369,8 @@
         }, delay);
         state.navigationTimers.add(timer);
       }
-      if (state.managerStatus !== "ready" && !state.managerSearchPromise) {
+      if (businessFeaturesEnabled()
+        && state.managerStatus !== "ready" && !state.managerSearchPromise) {
         state.managerProbeAttempts = 0;
         probeManager();
       }
@@ -392,8 +391,8 @@
       window.addEventListener("popstate", state.navigationHandler);
       window.addEventListener("hashchange", state.navigationHandler);
     }
-    scheduleEnsure();
-    state.managerProbeTimer = setTimeout(probeManager, 40);
+    state.navigationHandler();
+    if (businessFeaturesEnabled()) state.managerProbeTimer = setTimeout(probeManager, 40);
   };
   startDomIntegration();
   return diagnostics();

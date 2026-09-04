@@ -19,12 +19,17 @@
       );
       closeMenu();
       if (!targetButton) return;
-      opener(targetButton);
-      if (state.menu && state.menuButton === targetButton) {
-        targetButton.setAttribute("aria-expanded", "false");
-        state.menuButton = overflowButton;
-        overflowButton.setAttribute("aria-expanded", "true");
-        positionMenu();
+      state.menuFallbackButton = overflowButton;
+      try {
+        opener(targetButton);
+        if (state.menu && state.menuButton === targetButton) {
+          targetButton.setAttribute("aria-expanded", "false");
+          state.menuButton = overflowButton;
+          overflowButton.setAttribute("aria-expanded", "true");
+          positionMenu();
+        }
+      } finally {
+        state.menuFallbackButton = null;
       }
     });
     return item;
@@ -40,15 +45,25 @@
     title.className = "cbps-menu-title";
     title.textContent = "Controls";
     menu.appendChild(title);
-    menu.appendChild(overflowMenuItem(
-      "base-prompt", "Base Prompt", "下一个新 task", button, openMenu,
-    ));
-    menu.appendChild(overflowMenuItem(
-      "context-window", "Context window", "当前 task", button, openContextMenu,
-    ));
-    menu.appendChild(overflowMenuItem(
-      "provider", "Provider", "当前或下一个 task", button, openProviderMenu,
-    ));
+    if (state.controlHost?.dataset.cbpsPresentation === "more-only"
+      && state.controlHost.querySelector('[data-codex-context-usage-trigger="true"]')) {
+      menu.appendChild(overflowMenuItem(
+        "context-usage", "Usage", "最近调用与累计缓存统计", button, openUsageMenu,
+      ));
+    }
+    const append = (selector, target, label, description, opener) => {
+      if (state.controlHost?.querySelector(selector)) menu.appendChild(overflowMenuItem(
+        target, label, description, button, opener,
+      ));
+    };
+    append('[data-codex-base-prompt-trigger="true"]',
+      "base-prompt", "Base Prompt", "下一个新 task", openMenu);
+    append('[data-codex-context-window-trigger="true"]',
+      "context-window", "Context window", "当前 task", openContextMenu);
+    append('[data-codex-provider-indicator="true"]',
+      "provider", "Provider", "当前或下一个 task", openProviderMenu);
+    append('[data-codex-live-control-trigger="true"]',
+      "live-control", "Enhancements", "插拔、调试与恢复", openLiveControlMenu);
     if (!mountControlOverlay(menu)) return;
     state.menu = menu;
     state.menuButton = button;

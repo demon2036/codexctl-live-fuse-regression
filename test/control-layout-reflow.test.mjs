@@ -27,7 +27,7 @@ async function setup(t) {
   harness.document.elementsFromPoint = () => [permission];
   harness.dispatchDocument("readystatechange");
   await harness.flush();
-  return { harness, footer, permission };
+  return { harness, footer, native, permission };
 }
 
 const externalTarget = { closest() { return null; } };
@@ -60,6 +60,25 @@ test("control hit testing looks through its own stale host to Permissions", asyn
     harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().controlContextAvailable,
     true,
   );
+});
+
+test("a native footer action recomputes the owner boundary in both directions", async (t) => {
+  const { harness, native } = await setup(t);
+  const host = harness.document.getElementById("codex-prompt-context-control-host");
+  const before = harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics();
+  assert.equal(host.style.maxWidth, "500px");
+
+  native.setBoundingClientRect({ left: 500, top: 600, width: 100, height: 30 });
+  harness.dispatchDocument("pointerdown", { target: native });
+  await harness.flush();
+  assert.equal(host.style.maxWidth, "300px");
+
+  native.setBoundingClientRect({ left: 700, top: 600, width: 100, height: 30 });
+  harness.dispatchDocument("pointerdown", { target: native });
+  await harness.flush();
+  assert.equal(host.style.maxWidth, "500px");
+  const after = harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics();
+  assert.equal(after.uiMetrics.positionPasses, before.uiMetrics.positionPasses + 2);
 });
 
 test("stable external pointerdowns add no full reposition or timer", async (t) => {

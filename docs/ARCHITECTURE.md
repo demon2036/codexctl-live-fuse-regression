@@ -86,7 +86,7 @@ Prompt/Context renderer 被拆成小型职责片段：
 
 Prompt 与 Context 的 request transform 独立。`Next Base` 通过版本化 claim 只供紧接着的新 task 使用一次，成功后恢复配置默认 profile；失败回滚不能覆盖更新的 task 边界或用户选择，也不会改写当前 rollout。
 
-Context qualification 是 DOM 无关的单调容量判定。空闲 task 的同档/增大目标立即进入带恢复的官方 resume 事务；active task 仅在现有请求生命周期中合并一个最新目标，并由下一模型请求先等待其应用。缩容、compact 倒退、token 不安全和未知 Native 在任何订阅修改前拒绝。`native` 使用每个 thread 的 fresh 官方 usage 解析可比较容量，合法切换不写 model window/compact override；272K/450K 与 258.4K/427.5K 的确认使用同一精确映射。
+Context qualification 是 DOM 无关的当前状态判定。空闲 task 的增大或缩小目标立即进入带恢复的官方 resume 事务；active task 仅在现有请求生命周期中合并一个最新目标，并由下一模型请求先等待其应用。缩容或 compact 阈值降低且当前 token 已越界时标记下一轮自动 compact；未知 Native 在任何订阅修改前拒绝。`native` 使用每个 thread 的 fresh 官方 usage 解析可比较容量，合法切换不写 model window/compact override；272K/450K 与 258.4K/427.5K 的确认使用同一精确映射。
 
 ## Wallpaper
 

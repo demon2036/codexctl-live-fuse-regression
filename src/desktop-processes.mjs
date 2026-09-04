@@ -155,6 +155,35 @@ export async function processHasRelayOverride(pid, platform = process.platform) 
   return /(?:^|\s)CODEX_APP_(?:BASE_URL|API_KEY)=\S+/.test(environment);
 }
 
+function executableFromCommand(command) {
+  const value = String(command ?? "");
+  if (value.startsWith('"')) return value.slice(1, value.indexOf('"', 1));
+  return value.split(/\s/, 1)[0] || null;
+}
+
+export async function readProcessIdentity(pid, platform = process.platform) {
+  const row = await readProcessRow(pid);
+  if (!row) return null;
+  let executable = null;
+  try {
+    if (platform === "linux") executable = await fs.realpath(`/proc/${pid}/exe`);
+    else if (platform === "darwin") {
+      const { stdout } = await execFileAsync("/bin/ps", [
+        "-p", String(pid), "-o", "comm=",
+      ], { timeout: 5000, maxBuffer: 64 * 1024 });
+      executable = stdout.trim();
+    }
+  } catch {}
+  executable ||= executableFromCommand(row.command);
+  if (!path.isAbsolute(executable ?? "")) return null;
+  return {
+    command: row.command,
+    executable: await fs.realpath(executable).catch(() => executable),
+    pid: row.pid,
+    startedAt: row.startedAt,
+  };
+}
+
 export function decideDesktopAction(processInfo, options) {
   const port = remoteDebuggingPort(processInfo.command);
   if (options.deferredKeys?.has(processIdentityKey(processInfo))) return "deferred-current";

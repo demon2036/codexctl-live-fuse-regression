@@ -36,6 +36,10 @@ async function loadSource(themeDir) {
 }
 
 export function compileSource(source, artUrl) {
+  const imageBytes = source.imageBytes ?? source.art?.length;
+  if (!Number.isSafeInteger(imageBytes) || imageBytes < 1) {
+    throw new Error("Wallpaper source image size is invalid");
+  }
   const css = buildWallpaperCss(source);
   const styleRevision = createHash("sha256").update(css).digest("hex").slice(0, 20);
   const revision = createHash("sha256").update(source.sourceRevision).update(styleRevision)
@@ -56,11 +60,11 @@ export function compileSource(source, artUrl) {
   if (/__DREAM_SKIN_[A-Z0-9_]+_JSON__/.test(payload)) throw new Error("Wallpaper placeholder remained");
   new Script(payload, { filename: "codexctl-wallpaper-renderer.js" });
   return {
-    art: source.art,
+    art: source.art ?? null,
     artHash: source.artHash,
     artMetadata: source.artMetadata,
     config: { engine: ENGINE, performanceProfile: PROFILE, revision, artUrl },
-    imageBytes: source.art.length,
+    imageBytes,
     mime: source.mime,
     payload,
     revision,

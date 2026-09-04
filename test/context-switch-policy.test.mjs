@@ -48,19 +48,24 @@ test("Context policy allows equal/larger targets and treats exact repeats as ide
   });
 });
 
-test("Context policy rejects window and compact regressions before runtime work", async (t) => {
+test("Context policy allows shrinking and marks targets that need compaction", async (t) => {
   const decide = await policyApi(t);
-  assert.equal(decide({ current: LARGE_CONTEXT, target: OAI_CONTEXT }).code,
-    "context-window-decrease");
+  assert.deepEqual(JSON.parse(JSON.stringify(decide({
+    current: LARGE_CONTEXT,
+    target: OAI_CONTEXT,
+  }))), {
+    action: "apply", code: "eligible-shrink", currentWindow: 450000,
+    targetWindow: 272000, shrinking: true,
+  });
   assert.equal(decide({
     current: LARGE_CONTEXT,
     target: { ...LARGE_CONTEXT, id: "early", autoCompactTokenLimit: 390000 },
-  }).code, "compact-limit-decrease");
+  }).action, "apply");
   assert.equal(decide({
     current: OAI_CONTEXT,
     target: LARGE_CONTEXT,
     totalTokens: 400000,
-  }).code, "token-limit-exceeded");
+  }).requiresCompaction, true);
 });
 
 test("Native uses a resolved official capacity instead of next-task-only semantics", async (t) => {
@@ -74,7 +79,7 @@ test("Native uses a resolved official capacity instead of next-task-only semanti
     current: LARGE_CONTEXT,
     target: NATIVE_CONTEXT,
     nativeContextWindow: 272000,
-  }).code, "context-window-decrease");
+  }).code, "eligible-shrink");
   assert.equal(decide({ current: OAI_CONTEXT, target: NATIVE_CONTEXT }).code,
     "native-capacity-unknown");
 });

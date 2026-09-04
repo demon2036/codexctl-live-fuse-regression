@@ -13,8 +13,19 @@ import { normalizeProviderId, OFFICIAL_PROVIDER_ID } from "./provider.mjs";
 import { commandPrompt, commandContext } from "./commands/prompt-context.mjs";
 import { commandWallpaper } from "./commands/wallpaper.mjs";
 import { assertNoArgs, extractFlag, extractOption, printJson } from "./cli-utils.mjs";
+import { commandLive, readLiveStatus } from "./live-command.mjs";
 
-const HELP = `codexctl — Codex Desktop 一次性启动控制器（macOS / Linux）
+const HELP = `codexctl — Codex Desktop 官方启动、一次性注入与 live 会话控制器（macOS / Linux）
+
+  codexctl live start [--isolated PATH] [--proxy-server=URL]
+      一次启动官方 App、薄宿主和会话伴随程序；之后 on/off 在同一 App PID 生效，无 CDP。
+
+  codexctl live status [--json]
+  codexctl live on|off
+  codexctl live plugin list|on|off [plugin-id]
+  codexctl live reload <plugin-id>|--all
+  codexctl live dev <plugin-id> --source PATH [--watch]
+  codexctl live dev stop <plugin-id>
 
   codexctl app
       默认使用与点击图标相同的官方 Remote-safe 启动；无 CDP、无注入、无额外参数。
@@ -44,7 +55,7 @@ const HELP = `codexctl — Codex Desktop 一次性启动控制器（macOS / Linu
   codexctl config path|show
   codexctl init
 
-配置修改不会热注入当前 renderer；请运行 codexctl app 做一次干净重启。
+普通配置命令不会擅自改当前 renderer；一次性路径用 codexctl app --inject，零重启开关用受控的 codexctl live 会话。
 `;
 
 async function commandInit(paths, args) {
@@ -163,7 +174,10 @@ async function activeManagedInjection(paths, config) {
 async function currentStatus(paths) {
   const policy = await loadProjectPolicy(paths);
   const config = await loadConfig(paths);
-  const activeInjection = await activeManagedInjection(paths, config);
+  const [activeInjection, live] = await Promise.all([
+    activeManagedInjection(paths, config),
+    readLiveStatus(paths),
+  ]);
   return {
     config: paths.configFile,
     platform: process.platform,
@@ -171,8 +185,9 @@ async function currentStatus(paths) {
     activeInjection,
     connectionDefault: "official",
     launchPolicy: policy.launch,
-    injectionMode: "explicit-one-shot",
-    backgroundProcesses: false,
+    injectionMode: live.managed ? "live-session" : "explicit-one-shot",
+    backgroundProcesses: live.managed,
+    live,
     modules: config.modules,
     prompt: { defaultProfileId: config.prompt.defaultProfileId, profiles: config.prompt.profiles.length },
     context: { defaultPresetId: config.context.defaultPresetId, presets: config.context.presets.length },
@@ -192,6 +207,9 @@ async function commandStatus(paths, args) {
     ? `active (${status.activeInjection.transport}, PID ${status.activeInjection.pid})`
     : "未加载（explicit one-shot）"}；后台 watcher/supervisor：无；CDP：${status.port
     ? `127.0.0.1:${status.port}` : "未分配（macOS preload 不需要）"}`);
+  console.log(status.live.managed
+    ? `live：ready（App PID ${status.live.app.pid}，companion PID ${status.live.companion.pid}，无 CDP）`
+    : "live：unmanaged（不会接管当前 App）");
   console.log(`项目策略：${paths.projectPolicyFile}`);
   console.log(`配置：${status.config}`);
 }
@@ -231,11 +249,12 @@ export async function main(argv) {
   if (command === "prompt") return commandPrompt(paths, args);
   if (command === "context") return commandContext(paths, args);
   if (command === "wallpaper") return commandWallpaper(paths, args);
+  if (command === "live") return commandLive(paths, args);
   if (command === "status") return commandStatus(paths, args);
   if (command === "doctor") return commandDoctor(paths, args);
   if (command === "clean") return commandClean(paths, args);
   if (command === "auto" || command === "inject") {
-    throw new UsageError(`${command} 常驻模式已移除；请运行 codexctl app 做一次性注入。`);
+    throw new UsageError(`${command} 旧常驻模式已移除；一次性注入用 codexctl app --inject，受控会话用 codexctl live start。`);
   }
   throw new UsageError(`未知命令：${command}`);
 }

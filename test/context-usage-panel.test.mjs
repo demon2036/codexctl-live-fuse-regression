@@ -321,7 +321,8 @@ test("keeps the Usage panel reachable in a compact viewport", async (t) => {
     fixture.loaded.payload,
     /data-cbps-density="tight"[^}]*\.cbps-usage-trigger\s*\{[^}]*flex:\s*0\s+0\s+auto[^}]*min-width:/s,
   );
-  assert.match(fixture.loaded.payload, /state\.controlHost\.hidden = availableWidth < 178/);
+  assert.match(fixture.loaded.payload, /applyControlPresentation\(state\.controlHost, availableWidth\)/);
+  assert.doesNotMatch(fixture.loaded.payload, /availableWidth < (?:300|460)/);
 });
 
 test("exposes unavailable progress as unavailable instead of zero", async (t) => {

@@ -244,8 +244,8 @@
     if (!id) return null;
     return providerDetailsForId(id, "pending");
   };
-  const selectedProviderForRequest = () => normalizeProviderId(state.pendingProvider)
-    ?? launchProviderId();
+  const selectedProviderForRequest = () => featureEnabled("provider")
+    ? normalizeProviderId(state.pendingProvider) ?? launchProviderId() : null;
 
   const effectiveProviderForNewTask = () => {
     const pending = selectedProviderForRequest();
@@ -268,8 +268,9 @@
 
   const claimPendingProviderForTask = (params) => {
     const pendingProviderId = normalizeProviderId(state.pendingProvider);
-    const providerId = pendingProviderId ?? launchProviderId();
-    const eligible = isEligibleThreadStart(params);
+    const providerId = featureEnabled("provider")
+      ? pendingProviderId ?? launchProviderId() : null;
+    const eligible = featureEnabled("provider") && isEligibleThreadStart(params);
     if (eligible) state.providerSelectionVersion += 1;
     const claim = {
       providerId,

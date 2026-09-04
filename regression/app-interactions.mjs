@@ -13,7 +13,7 @@ export function evaluateAppInteractions(value = {}) {
   for (const field of [
     "activeAppliedBeforeTurn", "activeLabelCurrentThread", "copyClean",
     "failureRolledBack", "idempotentNoRequest", "largeVerified", "nativeNoOverride",
-    "retryRecovered", "shrinkRejectedBeforeRequest",
+    "retryRecovered", "shrinkApplied",
   ]) add(failures, context[field] !== true, `context-${field}`);
   add(failures, context.activeCoalescedWindow !== 600000, "context-active-window");
   add(failures, context.immediateOrder !== "thread/read,thread/unsubscribe,thread/resume",
@@ -155,10 +155,10 @@ const INTERACTION_EXPRESSION = `(async () => {
   await api.hotSwitchContext(ids.large, C450);
   const idempotentNoRequest = fixture.calls.length === beforeSame;
   const beforeShrink = fixture.calls.length;
-  let shrinkError = "";
-  try { await api.hotSwitchContext(ids.large, OAI); } catch (error) { shrinkError = error.message; }
-  const shrinkRejectedBeforeRequest = beforeShrink === fixture.calls.length
-    && /272K.*450K|450K.*272K/.test(shrinkError);
+  await api.hotSwitchContext(ids.large, OAI);
+  const shrinkResume = fixture.calls.slice(beforeShrink)
+    .find(({ method }) => method === "thread/resume");
+  const shrinkApplied = shrinkResume?.params?.config?.model_context_window === 272000;
 
   fixture.setCurrentThread(ids.oai);
   fixture.setUsage(258400);
@@ -354,7 +354,7 @@ const INTERACTION_EXPRESSION = `(async () => {
       oaiEffective: fixture.manager.conversations.get(ids.oai).latestTokenUsageInfo.modelContextWindow,
       oaiWindow: oaiResume?.params?.config?.model_context_window ?? null,
       retryRecovered: retry?.queued !== true && api.contextForThread(ids.failed)?.id === "450k",
-      shrinkRejectedBeforeRequest,
+      shrinkApplied,
     },
     layout: {
       hostBeforeNativeControls,

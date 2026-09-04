@@ -14,7 +14,7 @@ function valid() {
       idempotentNoRequest: true, immediateOrder: "thread/read,thread/unsubscribe,thread/resume",
       largeCompact: 400000, largeVerified: true, largeWindow: 450000,
       nativeNoOverride: true, oaiEffective: 258400, oaiWindow: 272000,
-      retryRecovered: true, shrinkRejectedBeforeRequest: true,
+      retryRecovered: true, shrinkApplied: true,
     },
     layout: { initialAligned: true, multilineAligned: true, moved: true },
     stress: {

@@ -36,7 +36,7 @@
         && !document.querySelector?.('[data-codex-base-prompt-trigger="true"]');
       const contextMissing = featureEnabled("context")
         && !document.querySelector?.('[data-codex-context-window-trigger="true"]');
-      const providerMissing = (featureEnabled("prompt") || featureEnabled("context"))
+      const providerMissing = featureEnabled("provider")
         && !document.querySelector?.('[data-codex-provider-indicator="true"]');
       if (composerMounted && (promptMissing || contextMissing || providerMissing)) scheduleEnsure();
       if (state.managerProbeAttempts < MANAGER_MAX_PROBES) {

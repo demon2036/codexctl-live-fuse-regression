@@ -87,7 +87,9 @@ test("Prompt controls live outside the React composer reconciliation boundary", 
   t.after(() => fs.rm(fixture.directory, { recursive: true, force: true }));
   assert.match(fixture.loaded.payload, /document\.body\.appendChild\(host\)/);
   assert.match(fixture.loaded.payload, /codex-prompt-context-control-host/);
-  assert.doesNotMatch(fixture.loaded.payload, /anchor-name:|position-anchor:|anchor\(/);
+  assert.match(fixture.loaded.payload, /anchor-name:\s*--codexctl-composer-controls/);
+  assert.match(fixture.loaded.payload, /position-anchor:\s*--codexctl-composer-controls/);
+  assert.match(fixture.loaded.payload, /left:\s*calc\(anchor\(right\)\s*\+\s*5px\)/);
   assert.match(fixture.loaded.payload, /controlHost\.style\.left\s*=/);
   assert.doesNotMatch(fixture.loaded.payload,
     /html:not\(\[data-codexctl-wallpaper="active"\]\) (?:\.thread-scroll-container|:is\()/s);
@@ -100,7 +102,7 @@ test("Prompt controls live outside the React composer reconciliation boundary", 
   assert.doesNotMatch(fixture.loaded.payload, /new ResizeObserver/);
 });
 
-test("Prompt controls measure the visible Permissions button without mutating it", async (t) => {
+test("Prompt controls mark only the current Permissions owner and restore prior state", async (t) => {
   const fixture = await makePayload();
   t.after(() => fs.rm(fixture.directory, { recursive: true, force: true }));
   const harness = rendererHarness(fixture.loaded.payload);
@@ -125,13 +127,15 @@ test("Prompt controls measure the visible Permissions button without mutating it
 
   const first = makeComposer({ left: 300, top: 600, visible: false });
   const second = makeComposer({ left: 420, top: 640, visible: true });
+  second.setAttribute("data-codexctl-control-anchor", "legacy");
   harness.dispatchDocument("readystatechange");
   await harness.flush();
 
   const host = harness.document.getElementById("codex-prompt-context-control-host");
   assert.equal(host.parentElement, harness.document.body);
   assert.equal(first.getAttribute("data-codexctl-control-anchor"), null);
-  assert.equal(second.getAttribute("data-codexctl-control-anchor"), null);
+  assert.equal(second.getAttribute("data-codexctl-control-anchor"), "true");
+  assert.equal(host.getAttribute("data-cbps-anchor-active"), "true");
   assert.equal(harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().controlAnchorAttached, true);
   assert.equal(host.style.left, "525px", "inline coordinates remain the compatibility fallback");
   assert.equal(host.style.top, "640px");
@@ -140,11 +144,12 @@ test("Prompt controls measure the visible Permissions button without mutating it
   second.setBoundingClientRect({ width: 0, height: 0 });
   harness.dispatchWindow("resize");
   await harness.flush();
-  assert.equal(first.getAttribute("data-codexctl-control-anchor"), null);
-  assert.equal(second.getAttribute("data-codexctl-control-anchor"), null);
+  assert.equal(first.getAttribute("data-codexctl-control-anchor"), "true");
+  assert.equal(second.getAttribute("data-codexctl-control-anchor"), "legacy");
 
   harness.window.__CODEX_BASE_PROMPT_SWITCHER__.cleanup();
   assert.equal(first.getAttribute("data-codexctl-control-anchor"), null);
+  assert.equal(second.getAttribute("data-codexctl-control-anchor"), "legacy");
   assert.equal(harness.document.getElementById("codex-prompt-context-control-host"), null);
 });
 

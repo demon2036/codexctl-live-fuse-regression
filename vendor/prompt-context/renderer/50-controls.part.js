@@ -89,7 +89,7 @@
       : Number.isInteger(runtimeWindow) && Number.isInteger(context.contextWindow)
         ? `\n当前 runtime 有效窗口 ${formatTokenCount(runtimeWindow)}（配置 ${formatTokenCount(context.contextWindow)}）`
         : ""}${currentTask
-      ? "\n当前 task 空闲且未超过目标 compact 阈值时可切换"
+      ? "\n当前 task 可增大或缩小；缩小时下一轮按新阈值自动 compact"
       : "\n用于下一个新 task"}`);
     const statusText = switching
       ? '<span class="cbps-locked-text">· 切换中</span>'
@@ -157,17 +157,18 @@
   const renderUsageButton = (button, composer) => {
     const threadId = currentConversationId(composer);
     const metrics = threadId ? usageMetricsForThread(threadId, { includeBreakdown: false }) : null;
-    const percent = metrics?.current?.percent;
+    const latest = metrics?.cache?.last;
+    const percent = finiteNonNegative(latest?.percent);
     const label = percent == null ? "—" : percent > 100 ? "100%+" : percent >= 99.95 ? "100%" : usagePercent(percent, 1);
     setAttributeIfChanged(button, "data-thread-id", threadId || "");
     setAttributeIfChanged(button, "data-ready",
       state.managerStatus === "ready" && threadId ? "true" : "false");
-    setAttributeIfChanged(button, "aria-label", `查看当前 task 的 Context usage，当前 ${label}`);
-    setAttributeIfChanged(button, "title", metrics?.exact?.context
-      ? `${usageInteger(metrics.current.usedTokens)} / ${usageInteger(metrics.current.contextWindow)} tokens (${usagePercent(percent)})`
-      : "当前 task 尚无可用的 token usage");
+    setAttributeIfChanged(button, "aria-label", `查看最近一次模型调用的缓存率，当前 ${label}`);
+    setAttributeIfChanged(button, "title", percent == null
+      ? "最近一次模型调用尚无可用的缓存数据"
+      : `缓存 ${usageInteger(latest.cachedInputTokens)} / ${usageInteger(latest.inputTokens)}；未缓存 ${usageInteger(latest.uncachedInputTokens)}（${usagePercent(percent)}）`);
     const content = `<span class="cbps-dot" aria-hidden="true"></span>${controlLabel("Usage", label)}`;
-    const renderKey = JSON.stringify([threadId, label, metrics?.exact?.context]);
+    const renderKey = JSON.stringify([threadId, label, latest?.cachedInputTokens, latest?.uncachedInputTokens]);
     if (button.dataset.cbpsRenderKey !== renderKey) {
       button.innerHTML = content;
       setAttributeIfChanged(button, "data-cbps-render-key", renderKey);
@@ -231,29 +232,6 @@
     return candidates[0] ?? null;
   };
 
-  const firstNativeControlLeft = (footer, composer, permissionButton, permissionRect) => {
-    const candidates = new Set();
-    for (const selector of [
-      "button", '[role="button"]', "input", "select", "textarea",
-      '[data-composer-navigation-target]', "[tabindex]",
-    ]) {
-      for (const element of footer.querySelectorAll(selector)) candidates.add(element);
-    }
-    let boundary = Number.POSITIVE_INFINITY;
-    for (const element of candidates) {
-      if (element === permissionButton || permissionButton.contains?.(element)
-        || composer.contains?.(element)
-        || element.closest?.(`#${CONTROL_HOST_ID}`) || !visuallyAvailable(element)) continue;
-      const rect = element.getBoundingClientRect();
-      const verticalOverlap = Math.min(permissionRect.bottom, rect.bottom)
-        - Math.max(permissionRect.top, rect.top);
-      if (!rectInViewport(rect) || verticalOverlap <= 1
-        || rect.left < permissionRect.right + 2) continue;
-      boundary = Math.min(boundary, rect.left);
-    }
-    return Number.isFinite(boundary) ? boundary : null;
-  };
-
   const ensureControlHost = () => {
     if (!document.body) return null;
     let host = state.controlHost;
@@ -264,9 +242,55 @@
       host.className = "cbps-control-host";
       host.setAttribute("data-codex-prompt-context-host", "true");
       document.body.appendChild(host);
+    } else if (host.parentElement !== document.body) {
+      document.body.appendChild(host);
+      state.controlHostReparented = true;
     }
     state.controlHost = host;
     return host;
+  };
+
+  const controlOwnerSignal = (node) => node?.nodeType === 1 && (node.matches?.(
+    CONTROL_OWNER_SIGNAL_SELECTOR,
+  ) || node.querySelector?.(CONTROL_OWNER_SIGNAL_SELECTOR));
+  const syncControlOwnerObserver = (context = null) => {
+    const root = context?.footer?.closest?.('[data-app-shell-main-surface]')
+      ?? document.querySelector?.('[data-app-shell-main-surface]')
+      ?? document.getElementById?.('root')
+      ?? null;
+    if (root === state.controlOwnerObserverRoot) return;
+    state.controlOwnerObserver?.disconnect();
+    state.controlOwnerObserverRoot = root;
+    if (!root || typeof MutationObserver !== "function") return;
+    if (!state.controlOwnerObserver) state.controlOwnerObserver = new MutationObserver((records) => {
+      if (state.stopped) return;
+      const relevant = records.some((record) => !state.controlComposer?.contains?.(record.target)
+        && (controlOwnerSignal(record.target)
+          || [...record.addedNodes, ...record.removedNodes].some(controlOwnerSignal)));
+      if (!relevant) return;
+      if (!state.controlComposer?.isConnected || !state.controlFooter?.isConnected
+        || !state.controlAnchor?.isConnected) scheduleEnsure();
+      else scheduleControlPosition();
+    });
+    state.controlOwnerObserver.observe(root, { childList: true, subtree: true });
+  };
+  const syncControlResizeObserver = (context = null, protectedNodes = []) => {
+    const targets = new Set(context ? [
+      context.composer, context.footer, context.permissionButton, ...protectedNodes,
+    ] : []);
+    for (let element = context?.footer?.parentElement;
+      element && element !== document.body; element = element.parentElement) targets.add(element);
+    const next = [...targets].filter((element) => element?.isConnected !== false);
+    if (next.length === state.controlResizeTargets.length
+      && next.every((target, index) => target === state.controlResizeTargets[index])) return;
+    state.controlResizeObserver?.disconnect();
+    state.controlResizeTargets = next;
+    state.controlResizeWidths.clear();
+    if (!next.length || typeof ResizeObserver !== "function") return;
+    if (!state.controlResizeObserver) state.controlResizeObserver = new ResizeObserver(() => {
+      if (!state.stopped) scheduleControlPosition();
+    });
+    for (const target of next) state.controlResizeObserver.observe(target);
   };
 
   const positionControlHost = () => {
@@ -274,39 +298,24 @@
     if (state.stopped || !state.controlHost?.isConnected) return;
     const context = controlContext();
     if (!context) {
-      syncControlAnchor();
-      state.controlHost.hidden = true;
+      layoutControlHost(null, state.controlHost);
+      if (state.menu) positionMenu();
       return;
     }
-    const { composer, footer, permissionButton, rect } = context;
-    syncControlAnchor(permissionButton, rect);
-    const footerRect = footer.getBoundingClientRect();
-    const left = Math.round(rect.left + rect.width + 5);
-    const viewportRight = Number(window.innerWidth) || Number(footerRect.right) || 0;
-    const nativeControlLeft = firstNativeControlLeft(footer, composer, permissionButton, rect);
-    const safeRight = Math.min(
-      (Number(footerRect.right) || viewportRight) - 8,
-      viewportRight - 8,
-      nativeControlLeft == null ? Number.POSITIVE_INFINITY : nativeControlLeft - 5,
-    );
-    const availableWidth = Math.max(0, Math.floor(safeRight - left));
-    state.controlHost.hidden = availableWidth < 178;
-    state.controlHost.style.left = `${left}px`;
-    state.controlHost.style.top = `${Math.round(rect.top)}px`;
-    state.controlHost.style.width = "max-content";
-    state.controlHost.style.maxWidth = `${availableWidth}px`;
-    setAttributeIfChanged(state.controlHost, "data-cbps-density",
-      availableWidth < 300 ? "tight" : availableWidth < 460 ? "compact" : "comfortable");
-    state.controlComposer = composer;
-    state.uiMetrics.positionPasses += 1;
+    const { composer } = context;
     const promptButton = state.controlHost.querySelector('[data-codex-base-prompt-trigger="true"]');
     const contextButton = state.controlHost.querySelector('[data-codex-context-window-trigger="true"]');
     const usageButton = state.controlHost.querySelector('[data-codex-context-usage-trigger="true"]');
     const providerIndicator = state.controlHost.querySelector('[data-codex-provider-indicator="true"]');
+    const liveButton = state.controlHost.querySelector('[data-codex-live-control-trigger="true"]');
     if (promptButton) renderButton(promptButton, composer);
     if (contextButton) renderContextButton(contextButton, composer);
     if (usageButton) renderUsageButton(usageButton, composer);
     if (providerIndicator) renderProviderIndicator(providerIndicator, composer);
+    if (liveButton) renderLiveControlButton(liveButton);
+    layoutControlHost(context, state.controlHost);
+    state.uiMetrics.positionPasses += 1;
+    if (state.menu) positionMenu();
   };
 
   function scheduleControlPosition() {
@@ -328,6 +337,7 @@
     let contextButton = host.querySelector('[data-codex-context-window-trigger="true"]');
     let usageButton = host.querySelector('[data-codex-context-usage-trigger="true"]');
     let providerIndicator = host.querySelector('[data-codex-provider-indicator="true"]');
+    let liveButton = host.querySelector('[data-codex-live-control-trigger="true"]');
     let overflowButton = host.querySelector('[data-codex-control-overflow-trigger="true"]');
     if (featureEnabled("prompt") && permissionButton && composer) {
       if (!promptButton) promptButton = makeButton(permissionButton, composer);
@@ -347,17 +357,22 @@
       if (usageButton.parentElement !== host) host.appendChild(usageButton);
       renderUsageButton(usageButton, composer);
     } else usageButton?.remove();
-    if ((featureEnabled("prompt") || featureEnabled("context")) && permissionButton && composer) {
+    if (featureEnabled("provider") && permissionButton && composer) {
       if (!providerIndicator) providerIndicator = makeProviderIndicator(permissionButton, composer);
       providerIndicator.className = "cbps-control cbps-trigger cbps-provider-indicator";
       if (providerIndicator.parentElement !== host) host.appendChild(providerIndicator);
       renderProviderIndicator(providerIndicator, composer);
     } else providerIndicator?.remove();
-    if ((featureEnabled("prompt") || featureEnabled("context")) && permissionButton && composer) {
+    if (liveControlEnabled() && permissionButton && composer) {
+      if (!liveButton) liveButton = makeLiveControlButton();
+      if (liveButton.parentElement !== host) host.appendChild(liveButton);
+      renderLiveControlButton(liveButton);
+    } else liveButton?.remove();
+    if (businessFeaturesEnabled() || liveControlEnabled()) {
       if (!overflowButton) overflowButton = makeControlOverflowButton();
       if (overflowButton.parentElement !== host) host.appendChild(overflowButton);
     } else overflowButton?.remove();
-    host.hidden = !context || (!featureEnabled("prompt") && !featureEnabled("context"));
+    host.hidden = !context || (!businessFeaturesEnabled() && !liveControlEnabled());
     scheduleControlPosition();
     if (state.menu && !state.menuButton?.isConnected) closeMenu();
     else positionMenu();

@@ -3,9 +3,9 @@
     timers.clear();
   };
   const mountControlOverlay = (element) => {
-    const host = state.controlHost;
-    if (!host?.isConnected || !element) return false;
-    host.appendChild(element);
+    if (!document.body || !state.controlHost?.isConnected || !element) return false;
+    element.setAttribute("data-codex-control-overlay", "true");
+    document.body.appendChild(element);
     return true;
   };
   const showToast = (message, kind = "info") => {
@@ -167,12 +167,15 @@
         to: cloneContext(selected),
         totalTokens: usage.totalTokens,
         requestedContextWindow: effectiveWindow,
+        requiresCompaction: latestDecision.requiresCompaction === true,
         effectiveContextWindow: verificationPending ? null : effectiveWindow,
         verificationPending,
         appServerRestarted: false,
         adoptedHistoricalTask: !wasRecorded,
       });
-      showToast(`已请求 ${selected.label}；下一轮 token usage 后确认实际窗口`);
+      showToast(latestDecision.requiresCompaction
+        ? `已缩小到 ${selected.label}；下一轮将先自动 compact`
+        : `已请求 ${selected.label}；下一轮 token usage 后确认实际窗口`);
       return {
         changed: true,
         context: cloneContext(selected),

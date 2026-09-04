@@ -109,35 +109,21 @@
           : "无法确认当前 task 的 Context 容量；当前 task 保持不变",
       );
     }
-    if (targetWindow < currentWindow) {
-      return rejectedContextSwitch(
-        "context-window-decrease",
-        currentWindow,
-        targetWindow,
-        `目标 Context ${formatTokenCount(targetWindow)} 小于当前 ${formatTokenCount(currentWindow)}；当前 task 不缩容`,
-      );
-    }
     const currentCompact = normalizedCurrent.autoCompactTokenLimit;
     const targetCompact = normalizedTarget.autoCompactTokenLimit;
-    if (Number.isInteger(currentCompact) && Number.isInteger(targetCompact)
-      && targetCompact < currentCompact) {
-      return rejectedContextSwitch(
-        "compact-limit-decrease",
-        currentWindow,
-        targetWindow,
-        `目标 compact ${formatTokenCount(targetCompact)} 小于当前 ${formatTokenCount(currentCompact)}；当前 task 不提前 compact`,
-      );
-    }
-    if (Number.isInteger(targetCompact) && Number.isFinite(totalTokens)
-      && totalTokens >= targetCompact) {
-      return rejectedContextSwitch(
-        "token-limit-exceeded",
-        currentWindow,
-        targetWindow,
-        `当前 ${formatTokenCount(totalTokens)}，目标 compact 阈值 ${formatTokenCount(targetCompact)}；请先 compact`,
-      );
-    }
-    return { action: "apply", code: "eligible", currentWindow, targetWindow };
+    const shrinking = targetWindow < currentWindow
+      || (Number.isInteger(currentCompact) && Number.isInteger(targetCompact)
+        && targetCompact < currentCompact);
+    const requiresCompaction = Number.isInteger(targetCompact)
+      && Number.isFinite(totalTokens) && totalTokens >= targetCompact;
+    return {
+      action: "apply",
+      code: shrinking ? "eligible-shrink" : "eligible",
+      currentWindow,
+      targetWindow,
+      ...(shrinking ? { shrinking: true } : {}),
+      ...(requiresCompaction ? { requiresCompaction: true } : {}),
+    };
   };
 
   const reconcilePendingContextVerification = (threadId) => {
@@ -212,6 +198,7 @@
       context: cloneContext(context),
       from: cloneContext(previous),
       requestedContextWindow: decision.targetWindow,
+      requiresCompaction: decision.requiresCompaction === true,
       totalTokens: usage.totalTokens,
       queuedAt: Date.now(),
     };
@@ -224,7 +211,9 @@
       ...queued,
       to: cloneContext(context),
     });
-    showToast(`本轮完成后应用到当前 task：Context ${context.label}`);
+    showToast(decision.requiresCompaction
+      ? `本轮完成后缩小到 ${context.label}；下一轮先自动 compact`
+      : `本轮完成后应用到当前 task：Context ${context.label}`);
     scheduleEnsure();
     return { changed: true, queued: true, context: cloneContext(context) };
   };

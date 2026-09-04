@@ -29,12 +29,16 @@ function normalizeRuntimeOptions(options = {}) {
   return {
     defaultProviderId: launchProviderId ?? OFFICIAL_PROVIDER_ID,
     launchProviderId,
+    livePrepare: options.livePrepare === true,
   };
 }
 
-function engineSourceFiles(config, paths) {
+function engineSourceFiles(config, paths, options = {}) {
+  const controlsEnabled = options.livePrepare
+    || config.modules.prompt || config.modules.context;
+  const wallpaperEnabled = options.livePrepare || config.modules.wallpaper;
   return {
-    promptContext: config.modules.prompt || config.modules.context ? [
+    promptContext: controlsEnabled ? [
       path.join(paths.projectRoot, "src", "renderer-injection.mjs"),
       path.join(paths.projectRoot, "src", "macos-preload-runtime.mjs"),
       paths.macPreloadHook,
@@ -42,13 +46,13 @@ function engineSourceFiles(config, paths) {
       ...["00-bootstrap", "02-storage", "05-prompt-policy", "10-thread-state",
         "12-provider-state", "15-request-client", "20-client-discovery", "22-client-probe",
         "25-context-policy", "27-usage-metrics", "30-context-switch", "35-custom-context-menu", "40-menus",
-        "42-usage-menu", "45-control-style", "49-provider-control", "49-overflow-control",
+        "42-usage-menu", "45-control-style", "48-live-control", "49-provider-control", "49-overflow-control",
         "50-controls", "51-control-layout", "60-lifecycle"].map((name) => path.join(
         paths.projectRoot, "vendor", "prompt-context", "renderer", `${name}.part.js`,
       )),
       path.join(paths.projectRoot, "vendor", "prompt-context", "VERSION"),
     ] : [],
-    wallpaper: config.modules.wallpaper ? [
+    wallpaper: wallpaperEnabled ? [
       path.join(paths.projectRoot, "src", "renderer-injection.mjs"),
       path.join(paths.projectRoot, "src", "macos-preload-runtime.mjs"),
       paths.macPreloadHook,
@@ -69,9 +73,9 @@ function engineSourceFiles(config, paths) {
   };
 }
 
-async function engineRevisions(config, paths) {
+async function engineRevisions(config, paths, options) {
   const revisions = {};
-  for (const [moduleName, files] of Object.entries(engineSourceFiles(config, paths))) {
+  for (const [moduleName, files] of Object.entries(engineSourceFiles(config, paths, options))) {
     if (!files.length) {
       revisions[moduleName] = null;
       continue;
@@ -117,7 +121,10 @@ export async function materializePromptContext(config, paths, options = {}) {
     features: {
       prompt: config.modules.prompt,
       context: config.modules.context,
+      provider: config.modules.prompt || config.modules.context,
+      live: false,
     },
+    liveControl: null,
     defaultProfileId: config.prompt.defaultProfileId,
     defaultContextId: config.context.defaultPresetId,
     defaultProviderId: provider.defaultProviderId,
@@ -159,7 +166,7 @@ async function sourceFingerprint(config, paths, runtimeOptions) {
   const configRevision = runtimeConfigRevision(config);
   const hash = createHash("sha256").update(configRevision);
   hash.update(`\0runtime-options:${JSON.stringify(runtimeOptions)}`);
-  const engines = await engineRevisions(config, paths);
+  const engines = await engineRevisions(config, paths, runtimeOptions);
   hash.update(`\0engines:${JSON.stringify(engines)}`);
   const sources = [
     ...config.prompt.profiles.map((profile) => profile.path),
@@ -234,18 +241,20 @@ export async function stageRuntime(config, paths, options = {}) {
   try {
     await ensurePrivateDirectory(generationPaths.themeDir);
     const promptContext = await materializePromptContext(config, generationPaths, runtimeOptions);
-    const wallpaper = await materializeWallpaper(config, generationPaths);
+    const wallpaper = await materializeWallpaper(config, generationPaths, {
+      prepareDisabled: runtimeOptions.livePrepare,
+    });
 
     // Compilation belongs to the transaction.  A syntactically valid JSON
     // file that cannot produce an executable renderer must never become the
     // current generation.
     const promptPayload = await loadPromptPayload(generationPaths.promptProfilesFile);
-    if (config.modules.prompt || config.modules.context) {
+    if (config.modules.prompt || config.modules.context || runtimeOptions.livePrepare) {
       // eslint-free syntax validation without executing private App code.
       new Function(promptPayload.payload);
     }
     let wallpaperPayload = null;
-    if (config.modules.wallpaper) {
+    if (config.modules.wallpaper || runtimeOptions.livePrepare) {
       wallpaperPayload = await loadWallpaperPayload(generationPaths.themeDir);
       new Function(wallpaperPayload.payload);
     }

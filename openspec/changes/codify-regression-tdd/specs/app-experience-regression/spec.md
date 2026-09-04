@@ -113,7 +113,7 @@ Prompt/Context 回归 SHALL 验证控件、菜单、请求转换、历史 thread
 - **WHEN** 连续切换 100 次 Sessions 并产生 1000 组输入事件
 - **THEN** 活动导航修复 timer 不超过 3，结束后 navigation/toast/bridge timer 全为 0，manager 深层发现最多一次，输入前后的 ensureSchedules 和 positionPasses 不增长
 
-### Requirement: Context 是当前 thread 的非缩容实时控制
+### Requirement: Context 是当前 thread 的可变实时控制
 当前 thread 已建立时，Context 菜单 SHALL 控制该 thread，而不是只设置新 task 默认值。系统 MUST 以当前已应用的配置容量作为比较下限：明确 preset 比较 `model_context_window`，双方均有明确 compact 阈值时还 MUST 保证目标阈值不降低；已经完成 resume 但等待 fresh usage 的目标也计入当前已应用容量。`native` MUST 先按当前 App、model 和 provider 解析为可比较的官方容量，不能把空 override 当作不可热切换。只有同档或增大的目标可以修改当前 thread；缩小、无法可靠比较或不满足 token 安全条件的目标 MUST 在任何 unsubscribe/resume 之前失败并保持原配置。
 
 “立即生效” MUST 指目标在下一次尚未发出的模型请求之前应用：空闲 thread 立即执行；已有回复正在生成时不得中断或追溯修改该请求，而应在本轮完成后的第一个安全请求边界应用，并阻止下一请求抢先使用旧 Context。排队和验证 MUST 由现有请求生命周期事件驱动，不得新增 observer、轮询或常驻 worker。
@@ -127,24 +127,24 @@ Prompt/Context 回归 SHALL 验证控件、菜单、请求转换、历史 thread
 - **THEN** 系统立即通过当前 thread 的安全 resume 路径应用目标配置，按钮显示目标配置值并进入 fresh usage 验证状态；用户无需创建新 task 或重新注入 App
 
 #### Scenario: 正在生成时在当前 thread 的安全边界生效
-- **WHEN** 当前回复正在生成且用户选择一个合法的同档或更大 Context
+- **WHEN** 当前回复正在生成且用户选择任意合法 Context
 - **THEN** 当前回复继续完成，系统仅保留一个事件驱动的切换意图并在本轮结束后、下一次模型请求发出前应用；UI 显示“本轮完成后应用到当前 task”而不是“只对下一个 task 生效”
 
 #### Scenario: 连续选择只应用最后一个合法目标
-- **WHEN** 当前回复生成期间用户连续选择多个相对当前已应用容量均不缩小的 Context
+- **WHEN** 当前回复生成期间用户连续选择多个合法 Context
 - **THEN** 系统合并未执行意图并只应用最后一个目标，不创建多个 resume、timer、observer 或后台任务
 
-#### Scenario: 缩小 Context 在修改 thread 前被拒绝
-- **WHEN** 目标配置窗口小于当前已应用窗口、双方明确 compact 阈值中的目标值更低，或当前 token 用量不满足目标安全阈值
-- **THEN** 系统保持当前 Context 和订阅不变，不执行 unsubscribe/resume，并准确说明当前值、目标值和拒绝原因；不得只显示笼统的“下一个 task 生效”
+#### Scenario: 缩小 Context 并在需要时标记下轮 compact
+- **WHEN** 目标配置窗口或 compact 阈值小于当前已应用值
+- **THEN** 空闲 task 立即通过官方 resume 事务缩小，active task 在下一次模型请求前应用；当前 token 已越过新阈值时保留历史并明确标记下一轮先自动 compact
 
 #### Scenario: Native 参与相同的容量判定
 - **WHEN** 用户为当前 thread 选择 `native` 且当前 App、model、provider 的官方容量已可靠解析为与当前相同或更大
 - **THEN** 系统在相同安全边界 resume 当前 thread，请求不携带 window/compact override，并以 fresh 官方 token usage 验证结果；不得因目标名为 Native 而强制推迟到新 task
 
-#### Scenario: Native 容量更小或无法可靠解析
-- **WHEN** Native 官方容量小于当前已应用容量，或系统无法为当前 App、model、provider 获得可信的可比较容量
-- **THEN** 当前 thread 保持不变且不发送变更请求，UI 显示具体的缩容或无法确认原因；不得谎称已经恢复官方默认，也不得使用“Native 只对下一个 task 生效”作为通用规则
+#### Scenario: Native 容量无法可靠解析
+- **WHEN** 系统无法为当前 App、model、provider 获得可信的 Native 可比较容量
+- **THEN** 当前 thread 保持不变且不发送变更请求，UI 显示无法确认原因；已解析且更小的 Native 仍按普通缩容规则应用
 
 #### Scenario: 选择当前 Context 是幂等操作
 - **WHEN** 用户再次选择当前已经应用且语义相同的 Context

@@ -30,7 +30,7 @@ Prompt/Context 启动必须优先走 memo-cache 快速路径；深层 React 图�
 
 Context 必须区分配置窗口和 Codex token usage 上报的有效窗口。当前兼容合同只接受配置原值或精确的 95% 有效值（272K→258.4K、450K→427.5K）；450K 绝不能把 258.4K 判为成功。新 task、历史 resume、当前 task 热切换和 UI 展示必须共用同一匹配函数。
 
-当前 task 的 Context 切换资格必须先由纯函数判定：同档/增大可进入事务，更小 window、compact 阈值倒退、token 不安全或 Native 容量未知必须在任何 read/unsubscribe/resume 前拒绝。回复 active 时只在既有请求生命周期中合并一个最新合法目标，并在下一模型请求前完成应用；不得为排队新增 timer、observer、worker 或轮询。fresh usage 验证失败必须恢复已确认记录。
+当前 task 的 Context 切换资格必须先由纯函数判定：任意合法档位均可进入事务；缩小 window、降低 compact 阈值或当前 token 已越过新阈值时标记下一轮需要 compact，只有 Native 容量未知等不可判定目标才在任何 read/unsubscribe/resume 前拒绝。回复 active 时只在既有请求生命周期中合并一个最新合法目标，并在下一模型请求前完成应用；不得为排队新增 timer、observer、worker 或轮询。fresh usage 验证失败必须恢复已确认记录。
 
 Developer Prompt 的 `Next Base` 是版本化 one-shot。新 task 请求必须先原子 claim，再恢复配置默认 profile；请求失败只能在 claim 仍是最新 task 边界且用户没有新选择时回滚，不能污染当前或历史 rollout。
 

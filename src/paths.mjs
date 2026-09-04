@@ -20,6 +20,13 @@ export function resolvePaths(env = process.env) {
     : path.join(configBase, "codexctl");
   const runtimeDir = path.join(controllerHome, "runtime");
   const runtimeGenerationsDir = path.join(runtimeDir, "generations");
+  const liveDir = path.join(runtimeDir, "live");
+  const liveCatalogDir = path.join(liveDir, "catalog");
+  const liveSocketBase = process.platform === "darwin" ? "/private/tmp" : os.tmpdir();
+  const liveSocketDir = path.join(
+    liveSocketBase,
+    `codexctl-live-${typeof process.getuid === "function" ? process.getuid() : "user"}`,
+  );
   return {
     projectRoot: PROJECT_ROOT,
     projectPolicyFile: path.join(PROJECT_ROOT, "codexctl.yaml"),
@@ -31,6 +38,13 @@ export function resolvePaths(env = process.env) {
     runtimeGenerationsDir,
     runtimeCurrentFile: path.join(runtimeDir, "current.json"),
     runtimeLockFile: path.join(runtimeDir, "runtime.lock"),
+    liveDir,
+    liveCatalogDir,
+    liveCatalogCurrentFile: path.join(liveCatalogDir, "current.json"),
+    liveCatalogGenerationsDir: path.join(liveCatalogDir, "generations"),
+    liveBootstrapsDir: path.join(liveDir, "bootstraps"),
+    liveSessionsDir: path.join(liveDir, "sessions"),
+    liveSocketDir,
     promptProfilesFile: path.join(runtimeDir, "prompt-context.json"),
     themeDir: path.join(runtimeDir, "theme"),
     logsDir: path.join(controllerHome, "logs"),
@@ -51,6 +65,9 @@ export function resolvePaths(env = process.env) {
     promptCleanup: path.join(PROJECT_ROOT, "vendor", "prompt-context", "cleanup-live.mjs"),
     wallpaperInjector: path.join(PROJECT_ROOT, "vendor", "wallpaper-lite", "injector.mjs"),
     macPreloadHook: path.join(PROJECT_ROOT, "src", "macos-preload.cjs"),
+    liveHostHook: path.join(PROJECT_ROOT, "src", "live-host.cjs"),
+    liveCompanionWorker: path.join(PROJECT_ROOT, "src", "live-companion-worker.mjs"),
+    liveCompanionLogFile: path.join(controllerHome, "logs", "live-companion.log"),
     bridgeExecutable: path.join(PROJECT_ROOT, "bin", "codexctl-bridge"),
     supervisorWorker: path.join(PROJECT_ROOT, "src", "supervisor-worker.mjs"),
     autoInjectWorker: path.join(PROJECT_ROOT, "src", "auto-inject-worker.mjs"),

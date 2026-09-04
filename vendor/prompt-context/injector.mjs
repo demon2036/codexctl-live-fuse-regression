@@ -87,7 +87,50 @@ function validateContext(entry, seen) {
   return { id, label, contextWindow, autoCompactTokenLimit, scope, native };
 }
 
-export async function loadPayload(profilesPath) {
+function featureValue(overrides, parsed, name, fallback = false) {
+  if (typeof overrides?.[name] === "boolean") return overrides[name];
+  if (typeof parsed?.features?.[name] === "boolean") return parsed.features[name];
+  return fallback;
+}
+
+function liveControlConfig(value) {
+  if (value == null) return null;
+  const sessionId = String(value.sessionId ?? "");
+  if (value.enabled !== true
+    || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(sessionId)) {
+    throw new Error("Live control config is invalid");
+  }
+  return { enabled: true, sessionId };
+}
+
+export function compileSource(source, options = {}) {
+  const promptEnabled = featureValue(options.features, source.runtime, "prompt");
+  const contextEnabled = featureValue(options.features, source.runtime, "context");
+  const runtime = {
+    ...source.runtime,
+    features: {
+      prompt: promptEnabled,
+      context: contextEnabled,
+      provider: featureValue(
+        options.features, source.runtime, "provider", promptEnabled || contextEnabled,
+      ),
+      live: options.liveControl?.enabled === true,
+    },
+    liveControl: liveControlConfig(options.liveControl),
+  };
+  const revision = createHash("sha256").update(source.version).update(source.template)
+    .update(JSON.stringify(source.profiles)).update(JSON.stringify(runtime)).digest("hex").slice(0, 24);
+  const config = { version: source.version, revision, bindingName: null,
+    profiles: source.profiles, ...runtime };
+  const payload = source.template.replace(
+    "__CODEX_BASE_PROMPT_CONFIG_JSON__", () => JSON.stringify(config),
+  );
+  if (payload.includes("__CODEX_BASE_PROMPT_CONFIG_JSON__")) throw new Error("Renderer placeholder remained");
+  new Script(payload, { filename: "codex-prompt-context-renderer.js" });
+  return { config, payload, revision, source };
+}
+
+export async function loadSource(profilesPath) {
   const [template, versionText, profilesText] = await Promise.all([
     rendererTemplate(),
     fs.readFile(path.join(here, "VERSION"), "utf8"),
@@ -139,8 +182,20 @@ export async function loadPayload(profilesPath) {
     throw new Error("Selection revisions must be non-negative integers");
   }
   const version = versionText.trim();
-  const runtime = {
-    features: { prompt: parsed.features?.prompt === true, context: parsed.features?.context === true },
+  const promptEnabled = featureValue(null, parsed, "prompt");
+  const contextEnabled = featureValue(null, parsed, "context");
+  return Object.freeze({
+    profiles,
+    template,
+    version,
+    runtime: {
+    features: {
+      prompt: promptEnabled,
+      context: contextEnabled,
+      provider: featureValue(null, parsed, "provider", promptEnabled || contextEnabled),
+      live: false,
+    },
+    liveControl: null,
     defaultProfileId,
     defaultContextId,
     defaultProviderId,
@@ -149,14 +204,12 @@ export async function loadPayload(profilesPath) {
     contextSelectionRevision,
     providerSelectionRevision: String(parsed.providerSelectionRevision ?? 0).slice(0, 160),
     contexts,
-  };
-  const revision = createHash("sha256").update(version).update(template)
-    .update(JSON.stringify(profiles)).update(JSON.stringify(runtime)).digest("hex").slice(0, 24);
-  const config = { version, revision, bindingName: null, profiles, ...runtime };
-  const payload = template.replace("__CODEX_BASE_PROMPT_CONFIG_JSON__", () => JSON.stringify(config));
-  if (payload.includes("__CODEX_BASE_PROMPT_CONFIG_JSON__")) throw new Error("Renderer placeholder remained");
-  new Script(payload, { filename: "codex-prompt-context-renderer.js" });
-  return { config, payload, revision };
+    },
+  });
+}
+
+export async function loadPayload(profilesPath, options = {}) {
+  return compileSource(await loadSource(profilesPath), options);
 }
 
 function diagnosticsExpression() {

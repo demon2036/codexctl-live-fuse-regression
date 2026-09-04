@@ -8,7 +8,7 @@
 - 建立分层测试门禁：快速单元/契约测试、事务集成测试、真实 Chromium 测试、隔离 App 官方与注入 A/B，以及发布前平台验收；清单项必须有可执行测试或明确证据，不能只写在文档里。
 - 为启动、打字、Sessions 滚动、long task、稳态 CPU、observer/timer/worker 和残留进程定义可重复的量化预算，以同版本官方 App 为基线控制环境噪声。
 - 将视觉正确性纳入核心回归：壁纸覆盖完整 viewport 和 bottom panel，Sidebar/Main/Composer 对比度可用；桌面持久 Sessions 侧栏展开时参与 shell 布局并推开 Main，不得与中间内容重叠；Prompt/Context 控件随 composer 移动且不重复、不消失。
-- 将 Prompt 默认值 `default`、Context 默认值 `native`、Developer Prompt 的 `Next Base` one-shot 语义、Context 对当前 thread 的非缩容实时切换，以及 272K/450K 配置窗口与 258.4K/427.5K 有效窗口映射写成不可含糊的行为契约；Context/Native 不得复用“只对下一个 task 生效”的 Prompt 文案。
+- 将 Prompt 默认值 `default`、Context 默认值 `native`、Developer Prompt 的 `Next Base` one-shot 语义、Context 对当前 thread 的可增可减实时切换，以及 272K/450K 配置窗口与 258.4K/427.5K 有效窗口映射写成不可含糊的行为契约；Context/Native 不得复用“只对下一个 task 生效”的 Prompt 文案。
 - 将 Remote-safe 启动、App 内置 CLI、官方 provider、项目级无凭据代理、macOS preload 导航中止/重装与共享有界 deadline、失败回退和完整进程边界写成发布阻断条件。
 - 采用严格 TDD：每个缺陷先提交能在修复前失败的最小回归测试，再做最小实现并在全绿后重构；禁止通过放宽断言、跳过用例、无限重试或只验证 mock 来掩盖真实回归。
 - 生成机器可读的回归结果摘要，记录环境、App/CLI 版本、PID、基线与注入指标、视觉/功能断言、残留状态和失败原因，便于复现和审阅。

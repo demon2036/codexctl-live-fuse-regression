@@ -74,9 +74,15 @@ async function materializeSelected(config, paths) {
     image: loaded.imagePath, themeDir: paths.themeDir, bytes: loaded.art.length };
 }
 
-export async function materializeWallpaper(config, paths) {
-  if (!config.modules.wallpaper) return { enabled: false, themeDir: paths.themeDir };
-  if (config.wallpaper.themeId) return materializeSelected(config, paths);
+export async function materializeWallpaper(config, paths, options = {}) {
+  const enabled = config.modules.wallpaper === true;
+  if (!enabled && options.prepareDisabled !== true) {
+    return { enabled: false, themeDir: paths.themeDir };
+  }
+  if (config.wallpaper.themeId) {
+    const prepared = await materializeSelected(config, paths);
+    return { ...prepared, enabled };
+  }
   const { canonical, stat } = await validateImage(config.wallpaper.image);
   const extension = path.extname(canonical).toLowerCase();
   if (!EXTENSIONS.has(extension)) throw new ConfigError("Wallpaper 只支持 PNG、JPEG 和 WebP。");
@@ -101,6 +107,6 @@ export async function materializeWallpaper(config, paths) {
     },
   };
   await writeTheme(paths, theme, await fs.readFile(canonical));
-  return { enabled: true, source: "image", themeId: null, image: canonical,
+  return { enabled, source: "image", themeId: null, image: canonical,
     themeDir: paths.themeDir, bytes: stat.size };
 }

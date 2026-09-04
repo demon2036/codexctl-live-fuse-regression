@@ -120,6 +120,7 @@ test("tight density exposes readable Usage and More controls instead of shrinkin
 
   const host = harness.document.getElementById("codex-prompt-context-control-host");
   assert.equal(host.getAttribute("data-cbps-density"), "tight");
+  assert.equal(host.getAttribute("data-cbps-presentation"), "overflow");
   const usage = host.querySelector('[data-codex-context-usage-trigger="true"]');
   const more = host.querySelector('[data-codex-control-overflow-trigger="true"]');
   assert.match(usage.textContent, /^Usage.*77\.4%$/);
@@ -131,4 +132,26 @@ test("tight density exposes readable Usage and More controls instead of shrinkin
   assert.match(overflow.textContent, /Base Prompt.*Context window.*Provider/);
   overflow.querySelector('[data-codex-overflow-target="base-prompt"]').click();
   assert.match(harness.document.querySelector(".cbps-menu").textContent, /Developer Prompt/);
+});
+
+test("an extreme owner width keeps every capability behind a single More trigger", async (t) => {
+  const { harness } = await setupConversation(t, {
+    latestTokenUsageInfo: {
+      last: { totalTokens: 200_000 },
+      modelContextWindow: 258_400,
+    },
+    turns: [],
+  });
+  const footer = harness.document.querySelector('[data-composer-footer-responsive="true"]');
+  footer.setBoundingClientRect({ left: 260, top: 620, width: 373, height: 36 });
+  harness.dispatchWindow("resize");
+  await harness.flush();
+
+  const host = harness.document.getElementById("codex-prompt-context-control-host");
+  assert.equal(host.getAttribute("data-cbps-presentation"), "more-only");
+  const more = host.querySelector('[data-codex-control-overflow-trigger="true"]');
+  more.click();
+  const targets = harness.document.querySelectorAll("[data-codex-overflow-target]")
+    .map((item) => item.getAttribute("data-codex-overflow-target"));
+  assert.deepEqual(targets, ["context-usage", "base-prompt", "context-window", "provider"]);
 });

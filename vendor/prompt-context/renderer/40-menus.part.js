@@ -53,9 +53,41 @@
 
   const positionMenu = () => {
     if (!state.menu || !state.menuButton) return;
-    const rect = state.menuButton.getBoundingClientRect();
+    let anchorButton = state.menuButton;
+    if (!visuallyAvailable(anchorButton) && visuallyAvailable(state.menuFallbackButton)) {
+      anchorButton = state.menuFallbackButton;
+    } else if (!visuallyAvailable(anchorButton)) {
+      const fallback = state.controlHost?.querySelector(
+        '[data-codex-control-overflow-trigger="true"]',
+      );
+      closeMenu();
+      if (visuallyAvailable(fallback)) {
+        try { fallback.focus({ preventScroll: true }); } catch { fallback.focus(); }
+      }
+      return;
+    }
+    const footer = state.controlFooter?.isConnected
+      ? state.controlFooter : controlContext()?.footer;
+    if (!footer?.isConnected) {
+      closeMenu();
+      return;
+    }
+    const footerRect = footer.getBoundingClientRect();
+    const viewportRight = (Number(window.innerWidth) || 0) - 12;
+    const paneLeft = Math.max(12, Number(footerRect.left) || 12);
+    const paneRight = Math.min(
+      viewportRight,
+      Number(footerRect.right) > 0 ? Number(footerRect.right) : viewportRight,
+    );
+    const paneWidth = Math.max(0, paneRight - paneLeft);
+    if (paneWidth < 64) {
+      closeMenu();
+      return;
+    }
+    state.menu.style.maxWidth = `${Math.floor(paneWidth)}px`;
+    const rect = anchorButton.getBoundingClientRect();
     const menuRect = state.menu.getBoundingClientRect();
-    const left = Math.min(window.innerWidth - menuRect.width - 12, Math.max(12, rect.left));
+    const left = Math.min(paneRight - menuRect.width, Math.max(paneLeft, rect.left));
     const above = rect.top - menuRect.height - 10;
     const top = above >= 12 ? above : Math.min(window.innerHeight - menuRect.height - 12, rect.bottom + 10);
     state.menu.style.left = `${Math.round(left)}px`;
@@ -229,8 +261,8 @@
     note.className = "cbps-note";
     note.textContent = threadId
       ? hasThreadRecord(threadId)
-        ? "仅修改当前 task；历史与 Base Prompt 保持不变。需处于空闲状态，且当前 token 低于目标 compact 阈值。"
-        : "旧 task 也可切换：Base Prompt 从 rollout 原样恢复；需处于空闲状态，且当前 token 低于目标 compact 阈值。"
+        ? "仅修改当前 task；缩小窗口时保留历史，下一轮按新阈值自动 compact。"
+        : "旧 task 也可切换：Base Prompt 从 rollout 原样恢复；缩小时下一轮自动 compact。"
       : "仅影响下一个新 task；不会突破模型或 Provider 的真实上限";
     menu.appendChild(note);
     if (!mountControlOverlay(menu)) return;

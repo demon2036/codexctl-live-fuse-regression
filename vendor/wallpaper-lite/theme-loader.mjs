@@ -62,7 +62,7 @@ function unit(value, name, source, { signed = false } = {}) {
   return value;
 }
 
-function parseTheme(bytes, source) {
+export function parseTheme(bytes, source) {
   let text;
   try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
   catch { throw new Error(`${source} is not valid UTF-8`); }

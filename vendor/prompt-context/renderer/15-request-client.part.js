@@ -1,3 +1,20 @@
+  const detachManagerPatch = (status = "disabled") => {
+    const client = state.manager?.requestClient;
+    const patch = client?.[PATCH_KEY];
+    if (patch && typeof patch === "object") {
+      try { patch.removeNotificationRepair?.(); } catch {}
+      patch.notificationRepairAttached = false;
+      patch.removeNotificationRepair = null;
+      if (typeof patch.originalSendRequest === "function") client.sendRequest = patch.originalSendRequest;
+      if (typeof patch.originalPrewarmThreadStart === "function") {
+        client.prewarmThreadStart = patch.originalPrewarmThreadStart;
+      }
+      try { delete client[PATCH_KEY]; } catch {}
+    }
+    state.manager = null;
+    state.managerStatus = status;
+  };
+
   const patchManager = (manager) => {
     const client = manager?.requestClient;
     if (!client || typeof client.sendRequest !== "function"

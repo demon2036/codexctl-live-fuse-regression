@@ -108,7 +108,7 @@ L3/L4 使用同一真实 payload 验证以下不变量：
 - Prompt/Context host 位于 React root 外且各一份，使用 CSS anchor 跟随 composer；
 - 1000 组输入与 100 次导航不增加 ensure/position 工作，导航 timer 峰值不超过 3 且最终为 0。
 
-Context 请求测试必须区分配置窗口与 95% effective window：272K→258.4K，450K→427.5K。258.4K 绝不能确认 450K。空闲同档/增大立即作用于当前 task；active 只排队最后一个合法目标并在下一请求前应用；缩容、compact 倒退、token 不安全和未知 Native 在 unsubscribe/resume 前零请求拒绝。Context 不得显示 Prompt 专属的“只对下一个 task 生效”。
+Context 请求测试必须区分配置窗口与 95% effective window：272K→258.4K，450K→427.5K。258.4K 绝不能确认 450K。空闲增大或缩小均立即作用于当前 task；active 只排队最后一个合法目标并在下一请求前应用；越过新 compact 阈值的缩容要标记下一轮自动 compact，未知 Native 仍在 unsubscribe/resume 前零请求拒绝。Context 不得显示 Prompt 专属的“只对下一个 task 生效”。
 
 ## 性能 A/B
 

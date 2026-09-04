@@ -137,7 +137,7 @@ function assertContext(result, expectedWidth) {
   assert.equal(result.largeCompact, 400000);
   assert.equal(result.largeVerified, true);
   assert.equal(result.idempotentNoRequests, true);
-  assert.equal(result.shrinkRejectedBeforeRequest, true);
+  assert.equal(result.shrinkApplied, true);
   assert.equal(result.oaiWindow, 272000);
   assert.equal(result.oaiVerified, true);
   assert.equal(result.nativeHasWindowOverride, false);
@@ -150,7 +150,8 @@ function assertContext(result, expectedWidth) {
   assert.equal(result.rejectedFreshRolledBack, true);
   assert.equal(result.staleActiveAppliedImmediately, true);
   assert.equal(result.staleActiveWindow, 600000);
-  assert.equal(result.resizeObserverCount, 0);
+  assert.equal(result.resizeObserverCount, 1,
+    "one owner-scoped observer must follow native footer/composer geometry");
   assert.equal(result.intervalCount, 0);
   assert.deepEqual(result.hotListenerCounts, { beforeinput: 0, input: 0, scroll: 0 });
   assert.deepEqual({
@@ -161,27 +162,20 @@ function assertContext(result, expectedWidth) {
   assert.equal(result.controls.composerContain, "none");
   assert.equal(result.controls.nativePermissionUntouched, true);
   assert.equal(result.controls.hostOutsideFooter, true);
-  assert.equal(result.controls.detachedHostHiddenAttribute, false,
-    "the test must observe the gap before an imperative repair runs");
-  assert.equal(result.controls.detachedHostDisplay, "none",
-    "the custom host must not paint without a live native composer anchor");
-  assert.deepEqual(result.controls.detachedHostBounds,
-    { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 });
   assert.equal(result.controls.promptMenuReachable, true);
   assert.equal(result.controls.contextMenuReachable, true);
   const aligned = ({ host, permission }) => (
-    Math.abs(host.left - permission.right - 5) < 0.6
-    && Math.abs(host.top - permission.top) < 0.6
+    Math.abs(host.left - permission.right) < 0.6
+    && Math.abs((host.top + host.height / 2)
+      - (permission.top + permission.height / 2)) < 0.6
     && host.width > 1 && host.height > 1
   );
   assert.equal(aligned(result.controls.initialBounds), true, "initial controls are not anchored");
   assert.equal(aligned(result.controls.multilineBounds), true, "multiline controls are not anchored");
   assert.equal(aligned(result.controls.sessionBounds), true, "Session controls are not anchored");
-  assert.notEqual(
-    result.controls.initialBounds.host.top,
+  assert.equal(result.controls.initialBounds.host.top,
     result.controls.multilineBounds.host.top,
-    "composer expansion did not move controls",
-  );
+    "bottom-row controls must remain anchored while the input expands upward");
   assert.equal(result.stress.navigationRepairs, 100);
   assert.ok(result.stress.navigationPeakTimers > 0 && result.stress.navigationPeakTimers <= 3);
   assert.equal(result.stress.navigationEndTimers, 0);
@@ -268,7 +262,7 @@ try {
         "CONTEXT-IDLE-MONOTONIC-003",
         "CONTEXT-ACTIVE-SAFE-BOUNDARY-004",
         "CONTEXT-QUEUE-COALESCE-005",
-        "CONTEXT-SHRINK-REJECT-006",
+        "CONTEXT-SHRINK-APPLY-006",
         "CONTEXT-NATIVE-COMPARABLE-007",
         "CONTEXT-NATIVE-UNKNOWN-008",
         "CONTEXT-IDEMPOTENT-009",

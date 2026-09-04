@@ -190,7 +190,9 @@
   const state = {
     config: bootstrapConfig && typeof bootstrapConfig === "object" ? bootstrapConfig : {},
     manager: null,
-    managerStatus: "searching",
+    managerStatus: bootstrapConfig?.features?.prompt === true
+      || bootstrapConfig?.features?.context === true
+      || bootstrapConfig?.features?.provider === true ? "searching" : "disabled",
     managerError: null,
     managerProbeTimer: null,
     managerProbeAttempts: 0,
@@ -213,10 +215,14 @@
     appRoutesReadyHandler: null,
     controlHost: null,
     controlAnchor: null,
+    controlAnchorOriginal: null,
     controlAnchorRect: null,
     controlComposer: null,
     controlLayoutCheckQueued: false,
     controlLayoutFrame: null,
+    controlResizeObserver: null,
+    controlResizeTargets: [],
+    controlResizeWidths: new Map(),
     controlPositionQueued: false,
     ensureQueued: false,
     stopped: false,
@@ -237,6 +243,12 @@
     },
     menu: null,
     menuButton: null,
+    liveStatus: bootstrapConfig?.liveControl?.enabled === true ? {
+      connected: false,
+      sessionId: bootstrapConfig.liveControl.sessionId,
+    } : null,
+    liveActionPending: null,
+    liveActionSequence: 0,
     toast: null,
     bridgeSequence: 0,
     bridgeRequests: new Map(),

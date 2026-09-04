@@ -1,4 +1,6 @@
 .DS_Store
+.idea/
+ddadd/
 node_modules/
 .codexctl-test/
 coverage/

@@ -20,7 +20,7 @@
 - 不在测试 runner 内增加生产 watcher、observer、supervisor 或远程调试入口。
 - 不用完整截图像素一致性锁死第三方 App 的所有视觉细节。
 - 不把用户主 App、真实会话正文或登录凭据复制成测试夹具。
-- 不重新设计 Wallpaper、Developer Prompt、Remote 或 CLI 的其他用户语义；Context 当前-thread 非缩容切换及错误文案是本 change 明确修正的行为边界，其他产品偏差按最小修复处理。
+- 不重新设计 Wallpaper、Developer Prompt、Remote 或 CLI 的其他用户语义；Context 当前-thread 可增可减切换及错误文案是本 change 明确修正的行为边界，其他产品偏差按最小修复处理。
 - 不用单个平台结果推断另一个平台已通过。
 
 ## Decisions

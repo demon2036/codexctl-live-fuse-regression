@@ -105,6 +105,7 @@ export function sanitizedBaseEnvironment(source = process.env) {
     "CODEXCTL_RELAY_HANDSHAKE",
     "CODEXCTL_PRELOAD_SPEC",
     "CODEXCTL_PRELOAD_RESULT",
+    "CODEXCTL_LIVE_BOOTSTRAP",
     "CODEX_ELECTRON_USER_DATA_PATH",
     "NODE_OPTIONS",
     "CRS_OAI_KEY",

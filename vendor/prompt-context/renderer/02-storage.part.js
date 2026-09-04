@@ -1,4 +1,6 @@
   const featureEnabled = (name) => state.config?.features?.[name] === true;
+  const businessFeaturesEnabled = () => ["prompt", "context", "provider"]
+    .some(featureEnabled);
 
   const notifyHealthChanged = () => {
     if (state.stopped) return;
@@ -8,8 +10,10 @@
         ? document.querySelectorAll?.('[data-codex-base-prompt-trigger="true"]')?.length ?? 0 : -1,
       context: featureEnabled("context")
         ? document.querySelectorAll?.('[data-codex-context-window-trigger="true"]')?.length ?? 0 : -1,
-      provider: featureEnabled("prompt") || featureEnabled("context")
+      provider: featureEnabled("provider")
         ? document.querySelectorAll?.('[data-codex-provider-indicator="true"]')?.length ?? 0 : -1,
+      live: featureEnabled("live")
+        ? document.querySelectorAll?.('[data-codex-live-control-trigger="true"]')?.length ?? 0 : -1,
     });
     if (signature === state.healthSignature) return;
     state.healthSignature = signature;

@@ -39,14 +39,24 @@ function palette(theme) {
   const middleOpacity = edgeOpacity + (farOpacity - edgeOpacity) * 0.64;
   const sidebarOpacity = numberOr(tuning.sidebarOpacity, 0.52, 0.08, 0.96);
   const composerOpacity = numberOr(tuning.composerOpacity, 0.82, 0.45, 0.98);
+  const surfaceOpacity = clamp(composerOpacity + 0.08, 0.53, 0.98);
+  const elevatedOpacity = clamp(composerOpacity + 0.2, 0.65, 0.99);
+  const underOpacity = clamp(composerOpacity + 0.14, 0.68, 0.98);
   const tint = tuning.tint ?? colors.background;
   return {
     composer: rgba(colors.panel, composerOpacity),
     edge: rgba(tint, edgeOpacity),
     far: rgba(tint, farOpacity),
+    hover: rgba(colors.text, 0.1),
     middle: rgba(tint, middleOpacity),
     overlay: rgba(tint, overlayOpacity),
     sidebar: rgba(tint, sidebarOpacity),
+    surface: rgba(colors.panelAlt, surfaceOpacity),
+    surfaceElevated: rgba(colors.panelAlt, elevatedOpacity),
+    surfaceSecondary: rgba(colors.panel, surfaceOpacity),
+    surfaceUnder: rgba(colors.background, underOpacity),
+    textSecondary: rgba(colors.text, 0.74),
+    textTertiary: rgba(colors.text, 0.56),
   };
 }
 
@@ -58,7 +68,18 @@ export function buildWallpaperCss(source) {
 @layer codexctl-wallpaper-structure, dreamskin-community;
 @layer codexctl-wallpaper-structure {
 html[data-codexctl-wallpaper="active"] {
+  --codexctl-wallpaper-border: ${colors.line};
+  --codexctl-wallpaper-hover: ${paint.hover};
+  --codexctl-wallpaper-panel: ${paint.composer};
+  --codexctl-wallpaper-surface: ${paint.surface};
+  --codexctl-wallpaper-surface-elevated: ${paint.surfaceElevated};
+  --codexctl-wallpaper-surface-secondary: ${paint.surfaceSecondary};
+  --codexctl-wallpaper-surface-under: ${paint.surfaceUnder};
+  --codexctl-wallpaper-text: ${colors.text};
+  --codexctl-wallpaper-text-secondary: ${paint.textSecondary};
+  --codexctl-wallpaper-text-tertiary: ${paint.textTertiary};
   color-scheme: ${appearance};
+  color: var(--codexctl-wallpaper-text) !important;
   background-color: ${colors.background} !important;
   background-image: linear-gradient(${paint.overlay}, ${paint.overlay}), var(--codexctl-wallpaper-art) !important;
   background-position: center, var(--codexctl-wallpaper-focus-x) var(--codexctl-wallpaper-focus-y) !important;
@@ -103,6 +124,49 @@ html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel [data-app-acti
   background-image: none !important;
 }
 html[data-codexctl-wallpaper="active"] :is(
+  [data-app-shell-main-surface],
+  aside.app-shell-left-panel,
+  [data-codex-composer-root]
+) {
+  --color-text: var(--codexctl-wallpaper-text);
+  --color-text-emphasis: var(--codexctl-wallpaper-text);
+  --color-text-foreground: var(--codexctl-wallpaper-text);
+  --color-text-foreground-secondary: var(--codexctl-wallpaper-text-secondary);
+  --color-text-foreground-tertiary: var(--codexctl-wallpaper-text-tertiary);
+  --color-text-secondary: var(--codexctl-wallpaper-text-secondary);
+  --color-text-secondary-solid: var(--codexctl-wallpaper-text-secondary);
+  --color-text-tertiary: var(--codexctl-wallpaper-text-tertiary);
+  --color-icon-primary: var(--codexctl-wallpaper-text);
+  --color-icon-secondary: var(--codexctl-wallpaper-text-secondary);
+  --color-icon-tertiary: var(--codexctl-wallpaper-text-tertiary);
+  --color-surface: var(--codexctl-wallpaper-surface);
+  --color-surface-secondary: var(--codexctl-wallpaper-surface-secondary);
+  --color-surface-tertiary: var(--codexctl-wallpaper-surface-elevated);
+  --color-surface-elevated: var(--codexctl-wallpaper-surface-elevated);
+  --color-surface-elevated-secondary: var(--codexctl-wallpaper-surface-elevated);
+  --color-background-surface: var(--codexctl-wallpaper-surface);
+  --color-background-surface-under: var(--codexctl-wallpaper-surface-under);
+  --color-token-main-surface-primary: var(--codexctl-wallpaper-surface);
+  --color-token-text-primary: var(--codexctl-wallpaper-text);
+  --color-token-text-secondary: var(--codexctl-wallpaper-text-secondary);
+  --color-token-text-tertiary: var(--codexctl-wallpaper-text-tertiary);
+  --color-background-primary-ghost-hover: var(--codexctl-wallpaper-hover);
+  --color-border: var(--codexctl-wallpaper-border);
+}
+html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel :is(
+  .text-default,
+  .sidebar-item
+) {
+  --color-text: var(--codexctl-wallpaper-text) !important;
+  color: var(--codexctl-wallpaper-text) !important;
+}
+html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel .text-secondary {
+  color: var(--codexctl-wallpaper-text-secondary) !important;
+}
+html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel .text-tertiary {
+  color: var(--codexctl-wallpaper-text-tertiary) !important;
+}
+html[data-codexctl-wallpaper="active"] :is(
   [data-app-shell-focus-area="bottom-panel"],
   [data-app-shell-focus-area="bottom-panel"] .bg-surface,
   [data-app-shell-main-content-layout] > .bg-surface
@@ -131,6 +195,14 @@ html[data-codexctl-wallpaper="active"] :is(
   background-color: ${paint.composer} !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+}
+html[data-codexctl-wallpaper="active"] [data-codex-composer-root] {
+  --color-background-composer-action-bar: var(--codexctl-wallpaper-panel);
+}
+html[data-codexctl-wallpaper="active"]
+  [data-composer-rail-item][data-composer-rail-variant="controls"] {
+  background: var(--codexctl-wallpaper-panel) !important;
+  border-color: var(--codexctl-wallpaper-border) !important;
 }
 html[data-codexctl-wallpaper="active"] :is(
   .vertical-scroll-fade-mask,

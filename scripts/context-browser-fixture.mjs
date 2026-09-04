@@ -7,7 +7,9 @@ export function contextBrowserFixture(payload) {
 body { margin: 0; background: #111; color: #eee; }
 footer { position: fixed; left: 80px; right: 80px; bottom: 30px; height: 48px; }
 [data-codex-composer="true"] { min-height: 32px; }
-[data-composer-navigation-target="permissions"] { width: 100px; height: 30px; }
+[data-composer-navigation-target="permissions"] {
+  position: absolute; left: 0; bottom: 9px; width: 100px; height: 30px;
+}
 </style></head><body>
 <footer data-composer-footer-responsive="true">
   <section data-codex-composer="true"></section>
@@ -63,9 +65,9 @@ ${contextBrowserBootstrap(encodedPayload)}
     await api.hotSwitchContext(THREAD_A, LARGE);
     const idempotentNoRequests = calls.length === beforeIdempotent;
     const beforeShrink = calls.length;
-    let shrinkError = null;
-    try { await api.hotSwitchContext(THREAD_A, OAI); } catch (error) { shrinkError = error.message; }
+    await api.hotSwitchContext(THREAD_A, OAI);
     const afterShrink = calls.length;
+    const shrinkResume = calls.slice(beforeShrink).find((call) => call.method === "thread/resume");
 
     conversations.set(THREAD_B, makeConversation());
     recordNative(api, THREAD_B);
@@ -158,21 +160,37 @@ ${contextBrowserBootstrap(encodedPayload)}
     nextPermission.textContent = "Permissions";
     nextFooter.append(nextComposer, nextPermission);
     footer.remove();
-    const detachedHostDisplay = getComputedStyle(host).display;
-    const detachedHostBounds = bounds(host);
-    const detachedHostHiddenAttribute = host.hidden;
     document.body.insertBefore(nextFooter, host);
     const sidebar = document.createElement("aside");
     sidebar.className = "app-shell-left-panel";
     document.body.append(sidebar);
     sidebar.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     await requestClient.sendRequest("thread/read", { threadId: THREAD_E });
+    const replacementRowStyle = getComputedStyle(nextPermission.parentElement);
+    const replacementGap = Math.max(0, Number.parseFloat(
+      replacementRowStyle.columnGap === "normal"
+        ? replacementRowStyle.gap : replacementRowStyle.columnGap,
+    ) || 0);
+    let replacementLayout = null;
     await waitFor(() => {
       const hostRect = host.getBoundingClientRect();
       const permissionRect = nextPermission.getBoundingClientRect();
-      return Math.abs(hostRect.left - permissionRect.right - 5) < 0.6
-        && Math.abs(hostRect.top - permissionRect.top) < 0.6;
-    }, "Session replacement controls");
+      replacementLayout = {
+        host: bounds(host), permission: bounds(nextPermission),
+        composer: bounds(nextComposer), footer: bounds(nextFooter),
+        gap: replacementGap, hidden: host.hidden,
+        candidate: host.dataset.cbpsActiveCandidate ?? null,
+        hits: document.elementsFromPoint(
+          permissionRect.left + permissionRect.width / 2,
+          permissionRect.top + permissionRect.height / 2,
+        ).map((node) => node.tagName + ":" + (node.getAttribute("data-composer-navigation-target") || node.className || "")),
+        controlOwner: api.diagnostics().controlOwner ?? null,
+        anchorRect: api.diagnostics().controlAnchorRect ?? null,
+      };
+      return Math.abs(hostRect.left - permissionRect.right - replacementGap) < 0.6
+        && Math.abs((hostRect.top + hostRect.height / 2)
+          - (permissionRect.top + permissionRect.height / 2)) < 0.6;
+    }, () => "Session replacement controls: " + JSON.stringify(replacementLayout));
     await new Promise((resolve) => setTimeout(resolve, 32));
     const sessionBounds = { host: bounds(host), permission: bounds(nextPermission) };
     await new Promise((resolve) => setTimeout(resolve, 800));
@@ -209,8 +227,8 @@ ${contextBrowserBootstrap(encodedPayload)}
       largeCompact: largeResume?.params?.config?.model_auto_compact_token_limit ?? null,
       largeVerified,
       idempotentNoRequests,
-      shrinkRejectedBeforeRequest: beforeShrink === afterShrink
-        && /272K.*450K|450K.*272K/.test(shrinkError || ""),
+      shrinkApplied: afterShrink > beforeShrink
+        && shrinkResume?.params?.config?.model_context_window === 272000,
       oaiWindow: oaiResume?.params?.config?.model_context_window ?? null,
       oaiVerified,
       nativeHasWindowOverride: Object.hasOwn(
@@ -234,9 +252,6 @@ ${contextBrowserBootstrap(encodedPayload)}
         promptCount: document.querySelectorAll('[data-codex-base-prompt-trigger="true"]').length,
         contextCount: document.querySelectorAll('[data-codex-context-window-trigger="true"]').length,
         hostOutsideFooter: host.parentElement === document.body,
-        detachedHostDisplay,
-        detachedHostBounds,
-        detachedHostHiddenAttribute,
         promptMenuReachable: Boolean(workItem),
         contextMenuReachable: Boolean(nativeItem && largeItem && oaiItem),
         initialBounds,

@@ -143,9 +143,9 @@ codexctl context set 384k \
 
 Context 与 Prompt 开关互不依赖。请求转换只修改对应字段，并保留其他 config。
 
-App 内的 `Context` 控件控制当前 task，并显示配置档位和实际 runtime effective window。空闲 task 选择同档或更大容量会立即走官方 resume 边界；回复生成中只保留最后一个合法目标，本轮继续完成，目标在下一次模型请求发出前应用。更小 window、倒退的 compact 阈值或 token 不安全目标会在 unsubscribe/resume 前拒绝。
+App 内的 `Context` 控件控制当前 task，并显示配置档位和实际 runtime effective window。空闲 task 选择任意合法档位会立即走官方 resume 边界；回复生成中只保留最后一个合法目标，本轮继续完成，目标在下一次模型请求发出前应用。缩小 window 或 compact 阈值时保留历史，若已超过新阈值则由下一轮按新配置先自动 compact。
 
-`native` 先按当前 task 已观测的官方容量参与相同的非缩容判定；合法切换不写 window/compact override，容量未知或更小时保持当前 task 不变。Context 从不使用 Prompt 专属的“只对下一个 task 生效”语义。272K/450K 的 runtime effective 映射分别是 258.4K/427.5K；旧 usage 只保持 pending，下一条 fresh usage 才能确认或回滚。
+`native` 先按当前 task 已观测的官方容量参与切换判定；合法切换不写 window/compact override，容量未知时保持当前 task 不变。Context 从不使用 Prompt 专属的“只对下一个 task 生效”语义。272K/450K 的 runtime effective 映射分别是 258.4K/427.5K；旧 usage 只保持 pending，下一条 fresh usage 才能确认或回滚。
 
 ### Context Usage 面板
 

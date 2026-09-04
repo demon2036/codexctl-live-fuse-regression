@@ -32,12 +32,12 @@
 | `CONTEXT-COPY-SEMANTICS-001` | app-experience-regression | Context 文案不继承 Prompt one-shot 语义 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |
 | `PROMPT-CONTEXT-NAVIGATION-PERF-004` | app-experience-regression | 高频导航和输入不增加后台工作 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `CONTEXT-NATIVE-NO-OVERRIDE-002` | app-experience-regression | Native Context 不覆盖官方字段 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
-| `CONTEXT-IDLE-MONOTONIC-003` | app-experience-regression | 空闲 thread 同档或增大立即生效 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
+| `CONTEXT-IDLE-MONOTONIC-003` | app-experience-regression | 空闲 thread 的合法目标立即生效 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `CONTEXT-ACTIVE-SAFE-BOUNDARY-004` | app-experience-regression | 正在生成时在当前 thread 的安全边界生效 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `CONTEXT-QUEUE-COALESCE-005` | app-experience-regression | 连续选择只应用最后一个合法目标 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |
-| `CONTEXT-SHRINK-REJECT-006` | app-experience-regression | 缩小 Context 在修改 thread 前被拒绝 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
+| `CONTEXT-SHRINK-APPLY-006` | app-experience-regression | 缩小 Context 并在需要时标记下轮 compact | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `CONTEXT-NATIVE-COMPARABLE-007` | app-experience-regression | Native 参与相同的容量判定 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
-| `CONTEXT-NATIVE-UNKNOWN-008` | app-experience-regression | Native 容量更小或无法可靠解析 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |
+| `CONTEXT-NATIVE-UNKNOWN-008` | app-experience-regression | Native 容量无法可靠解析 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |
 | `CONTEXT-IDEMPOTENT-009` | app-experience-regression | 选择当前 Context 是幂等操作 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |
 | `CONTEXT-WINDOW-MAPPING-010` | app-experience-regression | 272K 和 450K 映射准确 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `CONTEXT-PENDING-FRESH-USAGE-011` | app-experience-regression | 热切换期间展示区分配置值与有效值 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |

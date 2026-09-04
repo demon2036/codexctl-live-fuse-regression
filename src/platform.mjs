@@ -19,6 +19,7 @@ const LAUNCH_SERVICES_ENV_KEYS = Object.freeze([
   "CODEX_ELECTRON_USER_DATA_PATH",
   "CODEXCTL_PRELOAD_RESULT",
   "CODEXCTL_PRELOAD_SPEC",
+  "CODEXCTL_LIVE_BOOTSTRAP",
   "NODE_OPTIONS",
 ]);
 const PROXY_ENV_KEYS = Object.freeze([
@@ -334,6 +335,7 @@ export function describeLaunchPlan(plan) {
     injectionEnabled: plan.injectionEnabled,
     injectionTransport: plan.injectionTransport,
     debugPort: plan.debugPort,
+    liveHost: plan.liveHost === true,
   };
 }
 

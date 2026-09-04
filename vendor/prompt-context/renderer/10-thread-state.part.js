@@ -7,7 +7,7 @@
       prompt: eligible && featureEnabled("prompt") && Boolean(profile?.path),
       context: eligible && featureEnabled("context")
         && Number.isInteger(normalizedContext.contextWindow),
-      provider: eligible && Boolean(normalizedProvider),
+      provider: eligible && featureEnabled("provider") && Boolean(normalizedProvider),
     };
   };
   const recordThread = (threadId, profile, context, source, applied = null, provider = null) => {

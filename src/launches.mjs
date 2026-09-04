@@ -53,6 +53,11 @@ export async function recordManagedLaunch(paths, plan, processInfo, relay, confi
       port: plan.debugPort || null,
       modules: { ...config.modules },
     },
+    live: options.liveSession ? {
+      enabled: true,
+      hostRevision: options.liveSession.hostRevision,
+      sessionId: options.liveSession.sessionId,
+    } : { enabled: false, hostRevision: null, sessionId: null },
     isolatedProfile: options.isolatedProfile ? path.resolve(options.isolatedProfile) : null,
     createdAt: new Date().toISOString(),
   };

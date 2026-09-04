@@ -58,77 +58,43 @@
     return row;
   };
 
-  const appendCurrentUsage = (panel, metrics) => {
-    const section = usageSection("Current context");
-    const current = metrics.current;
-    section.appendChild(usageRow(
-      "Context",
-      `${usageInteger(current.usedTokens)} / ${usageInteger(current.contextWindow)}`,
-      current.percent,
-    ));
-    section.appendChild(usageRow("Remaining", usageInteger(current.remainingTokens)));
-    section.appendChild(usageProgress(
-      current.percent,
-      "Current context",
-      "cbps-usage-progress-context",
-    ));
-    panel.appendChild(section);
+  const cacheRate = (bucket) => {
+    const input = finiteNonNegative(bucket?.inputTokens);
+    const cached = finiteNonNegative(bucket?.cachedInputTokens);
+    if (input == null || cached == null || input <= 0) return null;
+    return Math.min(100, (cached / input) * 100);
   };
 
-  const appendCacheUsage = (panel, metrics) => {
-    const section = usageSection("Prompt cache");
-    const last = metrics.cache.last;
-    const conversation = metrics.cache.conversation;
-    section.appendChild(usageRow(
-      "Last request",
-      `${usageInteger(last.cachedInputTokens)} / ${usageInteger(last.inputTokens)}`,
-      last.percent,
-    ));
-    section.appendChild(usageRow(
-      "Conversation",
-      `${usageInteger(conversation.cachedInputTokens)} / ${usageInteger(conversation.inputTokens)}`,
-      conversation.percent,
-    ));
-    section.appendChild(usageRow(
-      "Uncached this turn",
-      usageInteger(last.uncachedInputTokens),
-    ));
-    panel.appendChild(section);
-  };
-
-  const appendSourceUsage = (panel, metrics) => {
-    const roleMode = metrics.roles?.mode ?? "unavailable";
-    const badge = roleMode === "exact" ? "Exact"
-      : roleMode === "estimated" ? "Estimated" : "Unavailable";
-    const section = usageSection("Role breakdown", badge);
-    if (!metrics.roles?.categories?.length) {
-      section.appendChild(usageRow("Breakdown", "Unavailable"));
-    } else {
-      for (const category of metrics.roles.categories) {
-        const row = usageRow(
-          category.label,
-          `${usageInteger(category.tokens)} · ${usagePercent(category.percent)}`,
-        );
-        row.className += " cbps-usage-source-row";
-        row.appendChild(usageProgress(
-          category.percent,
-          `${category.label} share`,
-          "cbps-usage-progress-source",
-        ));
-        section.appendChild(row);
-      }
+  const appendCacheBucket = (panel, titleText, bucket, badgeText = "Exact") => {
+    const section = usageSection(titleText, badgeText);
+    const input = finiteNonNegative(bucket?.inputTokens);
+    const cached = finiteNonNegative(bucket?.cachedInputTokens);
+    const uncached = finiteNonNegative(bucket?.uncachedInputTokens);
+    const percent = cacheRate(bucket);
+    if (input == null || cached == null || uncached == null || input <= 0) {
+      section.appendChild(usageRow("Cache data", "Not available yet"));
+      panel.appendChild(section);
+      return;
     }
+    section.appendChild(usageRow("Cached input", `${usageInteger(cached)} / ${usageInteger(input)}`, percent));
+    section.appendChild(usageRow("Uncached input", `${usageInteger(uncached)} / ${usageInteger(input)}`, 100 - percent));
+    section.appendChild(usageProgress(percent, `${titleText} cached input`, "cbps-usage-progress-context"));
     panel.appendChild(section);
   };
 
-  const appendCompactionUsage = (panel, metrics) => {
-    const section = usageSection("Compaction");
-    section.appendChild(usageRow("Compactions", usageInteger(metrics.compaction.count)));
-    const turnsAgo = metrics.compaction.turnsAgo;
-    section.appendChild(usageRow(
-      "Last compaction",
-      turnsAgo == null ? "Never" : `${usageInteger(turnsAgo)} ${turnsAgo === 1 ? "turn" : "turns"} ago`,
-    ));
+  const localUsageBucket = (threadId) => {
+    const usage = state.liveStatus?.usage;
+    return usage?.local ?? usage?.totals ?? usage?.threads?.[threadId]?.local ?? null;
+  };
+
+  const appendLocalUsage = (panel, threadId) => {
+    const bucket = localUsageBucket(threadId);
+    if (bucket) {
+      appendCacheBucket(panel, "Local history", bucket, "Persistent");
+      return;
+    }
+    const section = usageSection("Local history", "Persistent");
+    section.appendChild(usageRow("Status", "History index is not connected yet"));
     panel.appendChild(section);
   };
 
@@ -149,23 +115,19 @@
     menu.setAttribute("role", "dialog");
     menu.setAttribute("aria-labelledby", titleId);
     menu.setAttribute("data-codex-context-usage-panel", "true");
-    menu.setAttribute("data-source-mode", metrics.sources?.mode ?? "unavailable");
-    menu.setAttribute("data-role-mode", metrics.roles?.mode ?? "unavailable");
+    menu.setAttribute("data-usage-mode", "cache");
 
     const title = document.createElement("div");
     title.id = titleId;
     title.className = "cbps-menu-title cbps-usage-title";
-    title.textContent = "Context usage";
+    title.textContent = "Usage";
     menu.appendChild(title);
-    appendCurrentUsage(menu, metrics);
-    appendCacheUsage(menu, metrics);
-    appendSourceUsage(menu, metrics);
-    appendCompactionUsage(menu, metrics);
+    appendCacheBucket(menu, "Latest model call", metrics.cache.last);
+    appendCacheBucket(menu, "Current task", metrics.cache.conversation);
+    appendLocalUsage(menu, threadId);
     const note = document.createElement("div");
     note.className = "cbps-note cbps-usage-note";
-    note.textContent = metrics.roles?.mode === "estimated"
-      ? "Role shares are estimated from read-only conversation items; runtime totals and cache values remain exact."
-      : "Read-only runtime statistics. No Codex App files or conversation objects are modified.";
+    note.textContent = "Cached and uncached input are exact runtime counters; no conversation content is modified.";
     menu.appendChild(note);
 
     if (!mountControlOverlay(menu)) return;
