@@ -1,3 +1,6 @@
+// Semantic shell marker survives tag/class changes; keep legacy hosts as fallbacks.
+const SIDEBAR = ':is([data-app-shell-left-panel-appearance], .app-shell-left-panel, [data-testid="app-shell-floating-left-panel"])';
+
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -18,7 +21,7 @@ export function optimizeWallpaperCss(value) {
   if (css.includes(":has(")) throw new Error("Wallpaper CSS cannot contain :has()");
   css = css
     .replaceAll('[data-ds-part="root"]', 'html[data-codexctl-wallpaper="active"]')
-    .replaceAll('[data-ds-part="sidebar"]', 'aside.app-shell-left-panel')
+    .replaceAll('[data-ds-part="sidebar"]', SIDEBAR)
     .replaceAll(
       '[data-ds-part="composer"]',
       '.composer-surface-chrome, [data-composer-layout], [data-codex-composer-root]',
@@ -63,6 +66,11 @@ function palette(theme) {
 export function buildWallpaperCss(source) {
   const { colors } = source.theme;
   const paint = palette(source.theme);
+  const ratio = source.artMetadata?.ratio || 1;
+  const artWidth = `max(100vw, ${100 * ratio}vh)`;
+  const artHeight = `max(100vh, ${100 / ratio}vw)`;
+  const focusX = source.theme.art?.focusX ?? 0.5;
+  const focusY = source.theme.art?.focusY ?? 0.5;
   const appearance = source.theme.appearance === "light" ? "light" : "dark";
   return `
 @layer codexctl-wallpaper-structure, dreamskin-community;
@@ -110,22 +118,32 @@ html[data-codexctl-wallpaper="active"] [data-app-shell-main-surface] :is(
   background-color: transparent !important;
   background-image: none !important;
 }
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel {
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} {
   background: linear-gradient(90deg, ${paint.sidebar}, ${paint.edge}) !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel::after {
+/* Floating panels cover chat content: paint the art over an opaque base, not the chat. */
+html[data-codexctl-wallpaper="active"] [data-testid="app-shell-floating-left-panel"] {
+  background-color: ${colors.background} !important;
+  background-image: linear-gradient(${paint.sidebar}, ${paint.sidebar}),
+    linear-gradient(${paint.overlay}, ${paint.overlay}), var(--codexctl-wallpaper-art) !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100%, 100% 100%, ${artWidth} ${artHeight} !important;
+  background-position: 0 0, 0 0,
+    calc((100vw - ${artWidth}) * ${focusX}) calc((100vh - ${artHeight}) * ${focusY}) !important;
+}
+html[data-codexctl-wallpaper="active"] ${SIDEBAR}::after {
   background: transparent !important;
 }
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel > div,
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel [data-app-action-sidebar-scroll] {
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} > div,
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} [data-app-action-sidebar-scroll] {
   background-color: transparent !important;
   background-image: none !important;
 }
 html[data-codexctl-wallpaper="active"] :is(
   [data-app-shell-main-surface],
-  aside.app-shell-left-panel,
+  ${SIDEBAR},
   [data-codex-composer-root]
 ) {
   --color-text: var(--codexctl-wallpaper-text);
@@ -153,17 +171,17 @@ html[data-codexctl-wallpaper="active"] :is(
   --color-background-primary-ghost-hover: var(--codexctl-wallpaper-hover);
   --color-border: var(--codexctl-wallpaper-border);
 }
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel :is(
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} :is(
   .text-default,
   .sidebar-item
 ) {
   --color-text: var(--codexctl-wallpaper-text) !important;
   color: var(--codexctl-wallpaper-text) !important;
 }
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel .text-secondary {
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} .text-secondary {
   color: var(--codexctl-wallpaper-text-secondary) !important;
 }
-html[data-codexctl-wallpaper="active"] aside.app-shell-left-panel .text-tertiary {
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} .text-tertiary {
   color: var(--codexctl-wallpaper-text-tertiary) !important;
 }
 html[data-codexctl-wallpaper="active"] :is(

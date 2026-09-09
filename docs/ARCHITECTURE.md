@@ -118,7 +118,7 @@ Wallpaper 由三个小模块组成：
 
 图片不嵌入 JavaScript 或 CSS data URL。preload/CDP 都以 192 KiB 分片传输，renderer 创建 Blob URL。最终 payload 通常只有数 KiB。
 
-稳态 diagnostics 必须满足 observer=0、timer=0、layoutReads=0。CSS 禁止 `:has()`，去除 blur/filter 和 fixed background，并冻结持续动画。它只设置 root、sidebar、main 和 composer 的稳定样式，不给 message/token 节点打标。
+稳态 diagnostics 必须满足 observer=0、timer=0、layoutReads=0。CSS 禁止 `:has()`，去除 blur/filter 和 fixed background，并冻结持续动画。它只设置 root、sidebar、main 和 composer 的稳定样式，不给 message/token 节点打标。 Sidebar 优先匹配 `data-app-shell-left-panel-appearance`，保留旧 class/test-id 作为后备；docked 使用透明渐层，floating 在不透明底色上重绘同一张壁纸，避免透出聊天文字。壁纸尺寸随 viewport 由 CSS 计算，不改变官方侧栏几何或断点。
 
 ## 清理
 

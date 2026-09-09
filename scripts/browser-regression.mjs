@@ -117,10 +117,13 @@ function assertWallpaper(result, expectedWidth) {
     "docked Sidebar must not overlap Main");
   assert.ok(expandedMain.width < collapsedMain.width,
     "expanded Sidebar must reduce Main width");
-  assert.equal(result.floating.background, "rgb(17, 17, 17)");
-  assert.equal(result.floating.image, "none");
-  assert.equal(result.floating.innerBackground, "rgb(17, 17, 17)");
-  assert.equal(result.floating.selectorThemed, false);
+  assert.equal(result.floating.background, "rgb(7, 25, 29)", "floating art must obscure underlying chat");
+  assert.match(result.floating.image, /blob:/);
+  assertTransparent(result.floating.innerBackground, "floating inner surface");
+  assert.equal(result.floating.selectorThemed, true);
+  assert.match(result.compatibleSidebar.image, /linear-gradient/);
+  assertTransparent(result.compatibleSidebar.scrollBackground, "remounted semantic sidebar scroll");
+  assert.ok(result.compatibleSidebar.right <= result.compatibleSidebar.mainLeft + 0.5);
 }
 
 function assertContext(result, expectedWidth) {

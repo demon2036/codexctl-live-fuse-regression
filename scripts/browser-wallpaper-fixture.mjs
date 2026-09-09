@@ -172,6 +172,18 @@ ${controlCss}
     "mutationBatches", "mutationRecords"].map((key) => (
     [key, (after[key] || 0) - (before[key] || 0)]
   )));
+  // Recreate a docked host with a changed tag/class and another wrapper layer.
+  const updatedSidebar = document.createElement("section");
+  updatedSidebar.id = sidebar.id;
+  updatedSidebar.setAttribute("data-app-shell-left-panel-appearance", "default");
+  updatedSidebar.innerHTML = '<div><div data-app-action-sidebar-scroll></div></div>';
+  sidebar.replaceWith(updatedSidebar);
+  const compatibleSidebar = {
+    image: getComputedStyle(updatedSidebar).backgroundImage,
+    scrollBackground: getComputedStyle(updatedSidebar.querySelector('[data-app-action-sidebar-scroll]')).backgroundColor,
+    right: updatedSidebar.getBoundingClientRect().right,
+    mainLeft: rect("docked-main").left,
+  };
   const wallpaperStyle = node("codexctl-wallpaper-v2-style").textContent;
   node("result").textContent = JSON.stringify({
     anchorSupported: CSS.supports("left: anchor(right)"),
@@ -183,6 +195,7 @@ ${controlCss}
     stressDelta: delta,
     forbiddenCss: /:has\\(|backdrop-filter:\\s*blur|filter:\\s+(?:blur|contrast|brightness|drop-shadow)|position:\\s*fixed|background-attachment:\\s*fixed|animation:\\s+(?!none\\b)[a-z]/i.test(wallpaperStyle),
     sidebarLayout: { collapsedMain, expandedMain, expandedSidebar },
+    compatibleSidebar,
     floating: { background: style("floating-sidebar").backgroundColor,
       image: style("floating-sidebar").backgroundImage,
       innerBackground: style("floating-inner").backgroundColor,

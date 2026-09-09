@@ -224,7 +224,7 @@ if (assertSidebar) {
     assert.ok(docked.rect.right <= main.rect.x + 0.5, "docked Sidebar overlaps Main");
     assert.ok(main.rect.width < page.viewport.width - 32, "expanded Sidebar did not reduce Main width");
     assert.ok(!["absolute", "fixed"].includes(docked.position), "docked Sidebar became an overlay");
-    assert.equal(floatingSelectorThemed, false, "Wallpaper must not theme the floating Sidebar");
+    assert.equal(floatingSelectorThemed, true, "Floating Sidebar must paint art over chat");
     assert.equal(page.wallpaper.metrics?.observers, 0);
     assert.equal(page.wallpaper.metrics?.timers, 0);
   }

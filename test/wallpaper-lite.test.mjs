@@ -79,7 +79,7 @@ test("compiled wallpaper is a small static one-shot payload", async () => {
   assert.equal(loaded.mime, "image/webp");
   assert.equal(loaded.config.engine, "codexctl-wallpaper-once/4");
   assert.equal(loaded.config.performanceProfile, "one-shot-compositor");
-  assert.ok(Buffer.byteLength(loaded.payload) < 12_000);
+  assert.ok(Buffer.byteLength(loaded.payload) < 16_000);
   assert.match(loaded.payload, /blob:codexctl-test/);
   assert.doesNotMatch(
     loaded.payload,
@@ -88,7 +88,7 @@ test("compiled wallpaper is a small static one-shot payload", async () => {
   assert.doesNotMatch(loaded.payload, /backdrop-filter:\s*blur/i);
 });
 
-test("[WALLPAPER-SIDEBAR-DOCKED-GEOMETRY-001] wallpaper only paints the docked sidebar", async () => {
+test("[WALLPAPER-SIDEBAR-DOCKED-GEOMETRY-001] wallpaper preserves docked geometry and covers floating chat with art", async () => {
   const loaded = await loadPayload(themeDir, { artUrl: "blob:codexctl-test" });
   const css = buildWallpaperCss(loaded.source);
   assert.match(css, /@layer codexctl-wallpaper-structure, dreamskin-community/);
@@ -97,11 +97,11 @@ test("[WALLPAPER-SIDEBAR-DOCKED-GEOMETRY-001] wallpaper only paints the docked s
   assert.match(css, /data-app-action-sidebar-scroll/);
   assert.match(css, /bg-token-main-surface-primary/);
   assert.match(css, /data-app-shell-focus-area="bottom-panel"/);
-  assert.match(css, /aside\.app-shell-left-panel::after/);
-  const sidebar = css.match(/aside\.app-shell-left-panel\s*\{([^}]+)\}/);
+  assert.match(css, /data-app-shell-left-panel-appearance/);
+  const sidebar = css.match(/\)\s*\{([^}]*background: linear-gradient\(90deg[^}]+)\}/);
   assert.ok(sidebar, "docked Sidebar theme rule must be present");
   assert.doesNotMatch(sidebar[1], /\bcontain\s*:|\bisolation\s*:|\bwill-change\s*:|\btransform\s*:/);
-  assert.doesNotMatch(css, /app-shell-floating-left-panel/);
+  assert.match(css, /app-shell-floating-left-panel/);
   assert.doesNotMatch(css, /:has\(|position:\s*fixed|background-attachment:\s*fixed/);
 });
 
