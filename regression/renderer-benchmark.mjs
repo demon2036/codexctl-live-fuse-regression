@@ -1,6 +1,7 @@
 import { openAppSession } from "./app-cdp.mjs";
 import { percentile } from "./ab-sampler.mjs";
 import { chooseSidebarScroll } from "./sidebar-scroll.mjs";
+import { benchmarkTargets } from "./renderer-benchmark-targets.mjs";
 
 function summary(values) {
   const finite = values.filter(Number.isFinite);
@@ -14,27 +15,7 @@ function summary(values) {
 }
 
 const SETUP = `(() => {
-  const chooseSidebarScroll = (${chooseSidebarScroll.toString()});
-  const visible = (node) => {
-    if (!node) return false;
-    const rect = node.getBoundingClientRect();
-    const style = getComputedStyle(node);
-    return rect.width > 1 && rect.height > 1 && style.visibility !== "hidden"
-      && style.display !== "none";
-  };
-  const candidates = [...document.querySelectorAll(
-    'textarea, [contenteditable="true"], [role="textbox"]'
-  )];
-  const composer = candidates.find((node) => visible(node) && node.closest(
-    '[data-composer-layout], .composer-surface-chrome, [data-codex-composer="true"]'
-  )) ?? candidates.find(visible) ?? null;
-  const aside = document.querySelector('aside.app-shell-left-panel');
-  const scrollables = [aside, ...(aside?.querySelectorAll('*') ?? [])].filter((node) => {
-    if (!visible(node)) return false;
-    const style = getComputedStyle(node);
-    return /(auto|scroll)/.test(style.overflowY);
-  });
-  const sidebar = chooseSidebarScroll(scrollables);
+  const { composer, sidebar } = (${benchmarkTargets.toString()})(${chooseSidebarScroll.toString()});
   if (!composer) return { ok: false, reason: "composer-not-found" };
   const composerRect = composer.getBoundingClientRect();
   const sidebarRect = sidebar?.getBoundingClientRect() ?? null;
@@ -121,14 +102,14 @@ async function alignToAnimationFrame(session) {
   await session.evaluate("new Promise((resolve) => requestAnimationFrame(() => resolve(true)))");
 }
 
-async function restoreComposer(session) {
+export async function restoreBenchmarkComposer(session) {
   const draft = await session.evaluate(`(() => {
-    const data = window.__CODEXCTL_PERF_BENCH__;
+    const data = window.__CODEXCTL_PERF_BENCH__ ?? window.__CODEXCTL_SEGMENT__;
     if (!data) return null;
     if (!data.composer.isConnected) throw new Error("Benchmark composer was replaced");
     data.phase = "done";
     data.composer.focus();
-    return { text: data.originalComposerValue,
+    return { text: data.originalComposerValue ?? data.composerValue,
       modifiers: /Mac/.test(navigator.platform) ? 4 : 2 };
   })()`);
   if (!draft) return;
@@ -183,7 +164,7 @@ export async function runRendererBenchmark({
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     const afterMetrics = await session.send("Performance.getMetrics");
-    await restoreComposer(session);
+    await restoreBenchmarkComposer(session);
     const result = await session.evaluate(COLLECT);
     if (result.input.length < Math.floor(text.length * 0.9)) {
       throw new Error(`Input benchmark captured ${result.input.length}/${text.length} events`);
@@ -213,7 +194,7 @@ export async function runRendererBenchmark({
       targetId: session.target.id,
     };
   } finally {
-    if (setup) await restoreComposer(session).catch(() => {});
+    if (setup) await restoreBenchmarkComposer(session).catch(() => {});
     if (setup) await session.evaluate(`window.__CODEXCTL_PERF_BENCH__?.cleanup?.();
       delete window.__CODEXCTL_PERF_BENCH__;`).catch(() => {});
     await session.send("Emulation.setFocusEmulationEnabled", { enabled: false }).catch(() => {});

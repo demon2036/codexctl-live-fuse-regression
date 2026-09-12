@@ -1,4 +1,7 @@
 import { openAppSession } from "./app-cdp.mjs";
+import { chooseSidebarScroll } from "./sidebar-scroll.mjs";
+import { benchmarkTargets } from "./renderer-benchmark-targets.mjs";
+import { restoreBenchmarkComposer } from "./renderer-benchmark.mjs";
 
 export const RENDERER_STREAM_PROFILE = Object.freeze({
   durationMs: 12_000,
@@ -8,10 +11,7 @@ export const RENDERER_STREAM_PROFILE = Object.freeze({
 export const RENDERER_INPUT_PROFILE = Object.freeze({ repeats: 50, intervalMs: 8 });
 
 const SETUP = `(() => {
-  const composer = document.querySelector(
-    '[data-codex-composer="true"], [data-composer-layout], textarea, [role="textbox"]'
-  );
-  const sidebar = document.querySelector('aside.app-shell-left-panel');
+  const { composer, sidebar } = (${benchmarkTargets.toString()})(${chooseSidebarScroll.toString()});
   if (!composer || !sidebar) return { ok: false };
   const sidebarRect = sidebar.getBoundingClientRect();
   window.__CODEXCTL_SEGMENT__ = {
@@ -62,13 +62,13 @@ const STREAM = `(async () => {
 const CLEANUP = `(() => {
   const data = window.__CODEXCTL_SEGMENT__;
   if (!data) return { longTasks: [], restored: false };
-  if ("value" in data.composer) data.composer.value = data.composerValue;
-  else data.composer.textContent = data.composerValue;
   data.sidebar.scrollTop = data.scrollTop;
   data.observer?.disconnect();
   const restored = String(("value" in data.composer
     ? data.composer.value : data.composer.textContent) || "")
-    === String(data.composerValue || "") && data.sidebar.scrollTop === data.scrollTop;
+    === String(data.composerValue || "") && data.sidebar.scrollTop === data.scrollTop
+    && (window.__CODEXCTL_REGRESSION_APP__?.nativeDraft === undefined
+      || window.__CODEXCTL_REGRESSION_APP__.nativeDraft === data.composerValue);
   const result = { longTasks: [...data.longTasks], restored };
   delete window.__CODEXCTL_SEGMENT__;
   return result;
@@ -103,13 +103,14 @@ export async function runRendererSegment(port, phase) {
       for (let index = 0; index < 800; index += 1) {
         await session.send("Input.dispatchMouseEvent", {
           type: "mouseWheel", x: setup.sidebar.x, y: setup.sidebar.y,
-          deltaX: 0, deltaY: index < 400 ? 96 : -96,
+          deltaX: 0, deltaY: index % 2 === 0 ? 96 : -96,
         });
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     } else await session.evaluate(STREAM, 20_000);
     await new Promise((resolve) => setTimeout(resolve, 100));
     const after = metricMap(await session.send("Performance.getMetrics"));
+    await restoreBenchmarkComposer(session);
     const cleanup = await session.evaluate(CLEANUP);
     if (!cleanup.restored) throw new Error("Renderer segment failed to restore state");
     return {
@@ -120,6 +121,7 @@ export async function runRendererSegment(port, phase) {
       taskDurationMs: delta(before, after, "TaskDuration"),
     };
   } finally {
+    if (setup) await restoreBenchmarkComposer(session).catch(() => {});
     if (setup) await session.evaluate(CLEANUP).catch(() => {});
     session.close();
   }

@@ -4,8 +4,34 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifiedRendererDebuggerUrl } from "../src/renderer-injection.mjs";
+import vm from "node:vm";
+import { benchmarkTargets } from "../regression/renderer-benchmark-targets.mjs";
+import { chooseSidebarScroll } from "../regression/sidebar-scroll.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+test("native benchmarks choose the actual editor and nested scroll viewport", () => {
+  const node = (extra = {}) => ({
+    getBoundingClientRect: () => ({ width: 200, height: 50 }),
+    style: { visibility: "visible", display: "block", overflowY: "visible" },
+    matches: () => false, closest: () => null, ...extra,
+  });
+  const wrapper = node();
+  const unrelated = node();
+  const editor = node({ matches: () => true, closest: () => wrapper });
+  const viewport = node({ clientHeight: 50, scrollHeight: 200,
+    style: { visibility: "visible", display: "block", overflowY: "auto" } });
+  const aside = node({ querySelectorAll: () => [viewport] });
+  const value = vm.runInNewContext(`(${benchmarkTargets.toString()})(${chooseSidebarScroll.toString()})`, {
+    document: { querySelector: () => aside, querySelectorAll: (selector) => {
+      assert.doesNotMatch(selector, /data-composer-layout/);
+      return [unrelated, editor];
+    } },
+    getComputedStyle: (element) => element.style,
+  });
+  assert.equal(value.composer, editor);
+  assert.equal(value.sidebar, viewport);
+});
 
 function target(overrides = {}) {
   return {
