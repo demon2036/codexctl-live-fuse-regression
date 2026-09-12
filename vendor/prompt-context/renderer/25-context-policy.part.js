@@ -134,7 +134,9 @@
     const hasFreshUsage = Number.isInteger(usage.modelContextWindow)
       && (pending.totalTokens == null
         ? usage.totalTokens != null
-        : usage.totalTokens != null && usage.totalTokens !== pending.totalTokens);
+        : usage.totalTokens != null && usage.totalTokens !== pending.totalTokens
+        || (Number.isInteger(pending.observedContextWindow)
+          && usage.modelContextWindow !== pending.observedContextWindow));
     if (!hasFreshUsage) return pending;
     const matched = runtimeWindowMatchesContext(
       usage.modelContextWindow,
@@ -162,8 +164,12 @@
         error: `下一轮 runtime 有效窗口为 ${formatTokenCount(usage.modelContextWindow)}，未采用配置 ${formatTokenCount(pending.requestedContextWindow)}（预期 ${formatTokenCount(expectedWindow)}）`,
       });
     }
+    const verified = contextSwitchForThread(threadId);
+    if (verified?.ok === false) {
+      showToast(`Context ${pending.to.label} 未生效：${verified.error}`, "error");
+    }
     scheduleEnsure();
-    return contextSwitchForThread(threadId);
+    return verified;
   };
 
   const originalRequestForContextSwitch = () => {
@@ -178,6 +184,9 @@
   const resumeParamsForContext = (threadId, profile, context) => transformThreadStart({
     threadId,
     excludeTurns: true,
+    // Omitting config rejoins the loaded thread and retains its old override.
+    // An explicit empty config reloads model/provider defaults for Native.
+    ...(context?.native === true ? { config: {} } : {}),
   }, profile, context);
 
   const resumeParamsPreservingRollout = (threadId) => ({ threadId, excludeTurns: true });

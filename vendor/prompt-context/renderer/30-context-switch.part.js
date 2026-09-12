@@ -167,6 +167,7 @@
         to: cloneContext(selected),
         totalTokens: usage.totalTokens,
         requestedContextWindow: effectiveWindow,
+        observedContextWindow: usage.modelContextWindow,
         requiresCompaction: latestDecision.requiresCompaction === true,
         effectiveContextWindow: verificationPending ? null : effectiveWindow,
         verificationPending,

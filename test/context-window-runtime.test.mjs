@@ -94,6 +94,7 @@ test("450K hot switch waits for fresh usage then accepts 427.5K effective", asyn
   const buttons = harness.document.querySelectorAll('[data-codex-context-window-trigger="true"]');
   assert.equal(buttons.length, 1, "UI reconciliation must keep one Context button");
   assert.match(buttons[0].textContent, /Context\s*:\s*450K/);
+  assert.doesNotMatch(buttons[0].textContent, /待下一轮确认/);
   assert.equal(buttons[0].getAttribute("data-runtime-mismatch"), "false");
   assert.match(buttons[0].getAttribute("title"), /427\.5K.*配置 450K/);
   buttons[0].click();
@@ -102,7 +103,7 @@ test("450K hot switch waits for fresh usage then accepts 427.5K effective", asyn
 });
 
 test("450K hot switch rejects a fresh 258.4K runtime without false matching", async (t) => {
-  const { api, conversation } = await setup(t);
+  const { api, conversation, harness } = await setup(t);
   await api.hotSwitchContext(THREAD_ID, LARGE_CONTEXT);
   setUsage(conversation, 100001, 258400);
 
@@ -113,6 +114,7 @@ test("450K hot switch rejects a fresh 258.4K runtime without false matching", as
   assert.match(diagnostics.lastContextSwitch.error, /427\.5K/);
   assert.equal(diagnostics.currentContext.id, "oai");
   assert.equal(diagnostics.contextRuntimeMatches, true);
+  assert.match(harness.document.querySelector(".cbps-toast").textContent, /450K 未生效/);
 });
 
 test("fresh Context verification is isolated per thread", async (t) => {
@@ -146,8 +148,8 @@ test("a smaller legal Context resumes the current thread and marks compaction el
   assert.equal(api.diagnostics().currentContextSwitch.requiresCompaction, true);
 });
 
-test("Native with an equal known official capacity resumes the current task without overrides", async (t) => {
-  const { api, calls, conversation } = await setup(t);
+test("Native clears a larger current-task window and survives compact", async (t) => {
+  const { api, calls, conversation, requestClient } = await setup(t);
   api.recordThreadFromResult(
     { thread: { id: THREAD_ID } },
     { id: "default", label: "Default" },
@@ -157,8 +159,8 @@ test("Native with an equal known official capacity resumes the current task with
   );
   assert.equal(api.contextForThread(THREAD_ID).id, "native");
 
-  await api.hotSwitchContext(THREAD_ID, OAI_CONTEXT);
-  setUsage(conversation, 100001, 258400);
+  await api.hotSwitchContext(THREAD_ID, LARGE_CONTEXT);
+  setUsage(conversation, 100001, 427500);
   api.diagnostics();
   const beforeNative = calls.length;
 
@@ -167,11 +169,14 @@ test("Native with an equal known official capacity resumes the current task with
   const nativeCalls = calls.slice(beforeNative);
   const resume = nativeCalls.find((call) => call.method === "thread/resume");
   assert.ok(resume, "Native must resume the current thread");
+  assert.deepEqual(resume.params.config, {},
+    "CONTEXT-NATIVE-RESET-001: explicit empty config must invalidate the loaded override");
   assert.equal(resume.params.config?.model_context_window, undefined);
   assert.equal(resume.params.config?.model_auto_compact_token_limit, undefined);
   assert.equal(api.contextForThread(THREAD_ID).id, "native");
 
-  setUsage(conversation, 100002, 258400);
+  await requestClient.sendRequest("thread/compact/start", { threadId: THREAD_ID });
+  setUsage(conversation, 100001, 258400);
   const diagnostics = api.diagnostics();
   assert.equal(diagnostics.lastContextSwitch.ok, true);
   assert.equal(diagnostics.lastContextSwitch.verificationPending, false);

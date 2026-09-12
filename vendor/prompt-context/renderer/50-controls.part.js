@@ -103,7 +103,7 @@
     const content = `<span class="cbps-dot" aria-hidden="true"></span>${controlLabel("Context", compactLabel)}${statusText}`;
     const renderKey = JSON.stringify([
       label, compactLabel, context.label, displayedContext.label, runtimeMismatch, switching,
-      Boolean(queued),
+      Boolean(queued), runtimeVerificationPending,
     ]);
     if (button.dataset.cbpsRenderKey !== renderKey) {
       button.innerHTML = content;
