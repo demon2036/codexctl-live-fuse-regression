@@ -89,7 +89,9 @@ Accessibility 或 Screen Recording 权限缺失时结果必须是明确的 `unve
 
 Linux runner 必须使用实际 ChatGPT/Codex 发行包。应用发现接受真实包名差异，但 CDP 只允许动态 loopback endpoint，只连接匹配的 `app://` page target，安装完成即关闭 socket。
 
-Linux L5 还要证明 Remote、真实视觉/交互预算、单一 app-server、临时 HOME/profile 无持久修改和零残留。runner 通过发行包内置 CLI 在 run envelope 中建立无服务权限的离线 shell 凭据，并通过真实 `app-server` 创建 18 个合成 Sessions；每个 thread 只写入一条固定测试标题并立即 interrupt，从 `thread/list` 证明已持久化，不具备成功调用模型服务的凭据。发行包启动时只接收 run envelope 根目录这个 positional project，使首次 shell 与合成 Sessions 使用同一隔离 workspace，避免误停在 workspace chooser。主分支 CI 若配置 `OPENAI_API_KEY` secret，会在 fixture 完成后才通过 stdin 写入该临时 `CODEX_HOME`；两种凭据都不进入 argv、日志、artifact 或 App 环境。缺少 display、发行包或目标 renderer 时必须输出 `unverified`；L3/L4 fixture 不能替代实际发行包。
+Linux L5 还要证明 Remote、真实视觉/交互预算、单一 app-server、临时 HOME/profile 无持久修改和零残留。runner 通过发行包内置 CLI 在 run envelope 中建立无服务权限的离线 shell 凭据，并通过真实 `app-server` 创建 36 个合成 Sessions；每个 thread 只写入一条固定测试标题并立即 interrupt，从 `thread/list` 证明已持久化，不具备成功调用模型服务的凭据。发行包通过 `--open-project` 打开合成 Sessions 使用的同一隔离 workspace，避免误停在 workspace chooser。主分支 CI 若配置 `OPENAI_API_KEY` secret，会在 fixture 完成后才通过 stdin 写入该临时 `CODEX_HOME`；两种凭据都不进入 argv、日志、artifact 或 App 环境。缺少 display、发行包或目标 renderer 时必须输出 `unverified`；L3/L4 fixture 不能替代实际发行包。
+
+合成项目使用 run envelope 下的独立 `workspace` 目录，与 Electron profile、日志和凭据目录隔离；初始化 Sessions 与 App 启动始终使用同一个项目目录。隔离 Electron 的编辑器遵循原生 25dvh 滚动上限；连续输入结束前还必须证明原生权限按钮可命中，避免对已被输入内容挤出视口的错误布局做性能比较。输入长度、间隔和性能预算保持不变。
 
 平台证据写入：
 

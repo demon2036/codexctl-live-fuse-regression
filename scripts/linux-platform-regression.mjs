@@ -56,19 +56,22 @@ if (process.platform !== "linux") {
     };
     const paths = resolvePaths(env);
     const desktop = await discoverDesktop(config, env, "linux");
+    // Index a project, not the changing Electron profile and app-server state.
+    const workspace = path.join(envelope.root, "workspace");
+    await fs.mkdir(workspace, { recursive: true });
     const offlineAuthentication = await loginIsolatedLinuxProfile({
       cli: desktop.officialCli, codexHome: env.CODEX_HOME, env,
     });
     const profileFixture = await seedIsolatedCodexProfile({
       cli: desktop.officialCli, codexHome: env.CODEX_HOME,
-      cwd: envelope.root, env,
+      cwd: workspace, env,
     });
     const authentication = apiKey ? await loginIsolatedLinuxProfile({
       apiKey, cli: desktop.officialCli, codexHome: env.CODEX_HOME, env,
     }) : offlineAuthentication;
-    const official = await runLinuxPlatformMode({ config, envelope, env, mode: "official", paths });
-    const injected = await runLinuxPlatformMode({ config, envelope, env, mode: "injected", paths });
-    const recovery = await runLinuxPlatformMode({ config, envelope, env, mode: "official", paths });
+    const official = await runLinuxPlatformMode({ config, envelope, env, mode: "official", paths, workspace });
+    const injected = await runLinuxPlatformMode({ config, envelope, env, mode: "injected", paths, workspace });
+    const recovery = await runLinuxPlatformMode({ config, envelope, env, mode: "official", paths, workspace });
     const sequence = evaluateLinuxPlatformSequence({ official, injected, recovery });
     finish({
       schema: "codexctl-linux-platform/2",

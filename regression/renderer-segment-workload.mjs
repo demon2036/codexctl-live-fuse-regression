@@ -74,6 +74,16 @@ const CLEANUP = `(() => {
   return result;
 })()`;
 
+const INPUT_TOOLBAR_REACHABLE = `(() => {
+  const editor = window.__CODEXCTL_SEGMENT__?.composer;
+  const footer = editor?.closest('[data-composer-footer-responsive]');
+  const permission = footer?.querySelector('[data-composer-navigation-target="permissions"]');
+  if (!permission) return false;
+  const rect = permission.getBoundingClientRect();
+  const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  return rect.width > 0 && rect.height > 0 && permission.contains(hit);
+})()`;
+
 function metricMap(payload) {
   return Object.fromEntries((payload?.metrics ?? []).map(({ name, value }) => [name, value]));
 }
@@ -110,6 +120,9 @@ export async function runRendererSegment(port, phase) {
     } else await session.evaluate(STREAM, 20_000);
     await new Promise((resolve) => setTimeout(resolve, 100));
     const after = metricMap(await session.send("Performance.getMetrics"));
+    if (phase === "input" && !await session.evaluate(INPUT_TOOLBAR_REACHABLE)) {
+      throw new Error("Renderer input displaced the native toolbar");
+    }
     await restoreBenchmarkComposer(session);
     const cleanup = await session.evaluate(CLEANUP);
     if (!cleanup.restored) throw new Error("Renderer segment failed to restore state");

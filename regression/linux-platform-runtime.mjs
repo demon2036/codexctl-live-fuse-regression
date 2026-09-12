@@ -148,12 +148,13 @@ export async function runLinuxPlatformMode({
   env,
   mode,
   paths,
+  workspace,
 } = {}) {
   if (!new Set(["official", "injected"]).has(mode)) throw new Error(`Invalid Linux mode: ${mode}`);
   const injected = mode === "injected";
   const officialPort = injected ? null : await allocateLoopbackPort();
   const extraArgs = linuxPlatformLaunchArguments({
-    mode, port: officialPort, workspace: envelope.root,
+    mode, port: officialPort, workspace,
   });
   const logOffset = await fs.stat(paths.appLogFile).then(({ size }) => size).catch(() => 0);
   let managed = null;

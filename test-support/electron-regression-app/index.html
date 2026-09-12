@@ -9,7 +9,8 @@ html, body { margin: 0; width: 100%; min-height: 100%; background: rgb(17, 17, 1
 #bottom, #bottom-surface { background: rgb(17, 17, 17); }
 #bottom { flex: 0 0 auto; min-height: 74px; }
 #composer-footer { box-sizing: border-box; display: flex; align-items: flex-start; min-height: 68px; padding: 10px 520px 10px 24px; position: relative; }
-#composer { box-sizing: border-box; min-height: 42px; min-width: 0; flex: 1 1 auto; padding: 10px; position: relative; overflow: visible; background: rgb(17, 17, 17); }
+/* Match the native RichTextInput scroll cap and ProseMirror text layout. */
+#composer { box-sizing: border-box; min-height: 42px; max-height: 25dvh; min-width: 0; flex: 1 1 auto; padding: 10px; position: relative; overflow-y: auto; overflow-wrap: break-word; white-space: break-spaces; font-variant-ligatures: none; background: rgb(17, 17, 17); }
 #permission { flex: 0 0 100px; width: 100px; height: 32px; margin-left: 10px; }
 #native-controls { position: absolute; top: 10px; right: 24px; display: flex; align-items: center; gap: 8px; height: 36px; }
 #native-controls button { height: 32px; }

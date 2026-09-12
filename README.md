@@ -8,7 +8,7 @@
 
 默认连接永远是官方 OpenAI。macOS 默认启动与点击图标完全一致：走 LaunchServices、零参数、零 CDP、零注入。临时 relay 只由单次 `codexctl app -c ...` 启用，凭据不写配置、runtime 或 Git。
 
-`master` 是 1.x LTS 维护分支，接收兼容性、可靠性和安全修复。安装与更新不会自动修改正在运行的 App。支持范围、版本验证和回退步骤见 [LTS 维护说明](docs/LTS.md)。
+`master` 是 1.x LTS 维护分支，接收兼容性、可靠性和安全修复。当前仍有性能与用户 Linux 实机验收未完成，尚未发布通过全部验收的 LTS 标签。安装与更新不会自动修改正在运行的 App。支持范围、版本验证和回退步骤见 [LTS 维护说明](docs/LTS.md)。
 
 ## 性能架构
 
