@@ -11,15 +11,24 @@ test("[PLATFORM-LINUX-RENDERER-SURFACE-005] readiness waits for the real Session
     controls: { context: { count: 1 }, prompt: { count: 1 } },
     diagnostics: { managerStatus: "ready" },
     interactive: true,
+    ownerEvidence: [{ composer: true, visible: true, hitInside: true },
+      { target: "permissions", visible: true, hitInside: true }],
     sidebarScroll: { found: true, overflowing: false },
   };
   assert.equal(linuxRendererReady(shell, "injected"), false);
   assert.equal(linuxRendererReady({
-    ...shell, sidebarScroll: { found: true, overflowing: true },
+    ...shell, sidebarScroll: { found: true, overflowing: true, hit: { inside: true } },
   }, "injected"), true);
   assert.equal(linuxRendererReady({
-    ...shell, controls: {}, diagnostics: {}, sidebarScroll: { found: true, overflowing: true },
+    ...shell, controls: {}, diagnostics: {},
+    sidebarScroll: { found: true, overflowing: true, hit: { inside: true } },
   }, "official"), true);
+  for (const ownerEvidence of [[], [{ composer: true, visible: true, hitInside: true }],
+    shell.ownerEvidence.map((entry) => ({ ...entry, hitInside: false }))]) {
+    assert.equal(linuxRendererReady({ ...shell, ownerEvidence,
+      sidebarScroll: { found: true, overflowing: true, hit: { inside: true } },
+    }, "official"), false, "native toolbar and its hit regions must be ready before typing");
+  }
 });
 
 test("[PLATFORM-LINUX-WORKSPACE-ROUTE-004] actual Linux package opens the owned synthetic workspace in both modes", () => {

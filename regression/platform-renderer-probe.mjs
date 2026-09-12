@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { RendererSession, rendererTargets } from "../src/renderer-injection.mjs";
 import { chooseSidebarScroll } from "./sidebar-scroll.mjs";
 import { classifyPaintStyle, effectivePaintBackground } from "./visual-paint.mjs";
+import { COMPOSER } from "../vendor/wallpaper-lite/wallpaper-css.mjs";
 
 export function classifyPlatformShell(text, interactive = false) {
   if (interactive) return "interactive";
@@ -65,6 +66,7 @@ const PROBE = `(() => {
     '.composer-surface-chrome, [data-composer-layout], [data-codex-composer="true"]'
   ) || editor;
   const composerRoot = editor?.closest('[data-codex-composer-root]') || composer;
+  const composerSurface = editor?.closest(${JSON.stringify(COMPOSER)}) || composerRoot;
   const sidebar = [...document.querySelectorAll('aside.app-shell-left-panel')].find(visible) || null;
   const main = [...document.querySelectorAll('[data-app-shell-main-surface]')].find(visible) || null;
   const bottomPanel = [...document.querySelectorAll('[data-app-shell-focus-area="bottom-panel"]')]
@@ -133,12 +135,10 @@ const PROBE = `(() => {
     regions: {
       wallpaper: region(document.documentElement), body: region(document.body),
       bottom, sidebar: region(sidebar), main: region(main),
-      composer: region(composerRoot, "::before"),
+      composer: region(composerSurface, "::before"),
     },
     sidebarDocked: Boolean(sidebarBounds && mainBounds
-      && sidebarBounds.right <= mainBounds.x + 0.5
-      && sidebar?.parentElement === main?.parentElement
-      && !["absolute", "fixed"].includes(getComputedStyle(sidebar).position)),
+      && sidebarBounds.right <= mainBounds.x + 0.5),
     controls: {
       prompt: control('[data-codex-base-prompt-trigger="true"]'),
       context: control('[data-codex-context-window-trigger="true"]'),

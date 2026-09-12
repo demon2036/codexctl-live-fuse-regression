@@ -98,10 +98,15 @@
   };
   let currentThreadId = THREAD;
   let composer = document.getElementById("composer");
+  let nativeDraft = composer.value ?? composer.textContent;
+  document.addEventListener("input", (event) => {
+    if (event.target === composer) nativeDraft = composer.value ?? composer.textContent;
+  });
   const footerTemplate = document.getElementById("composer-footer").cloneNode(true);
   const nativeEvents = { contextHover: 0, sendClick: 0 };
   const attachComposer = (node) => {
     composer = node;
+    nativeDraft = composer.value ?? composer.textContent;
     composer.__reactFiber$regression = {
       memoizedProps: { conversationId: currentThreadId, hasConversation: true },
       updateQueue: { memoCache: { data: [[manager]] } },
@@ -204,6 +209,7 @@
     manager,
     conversation,
     nativeEvents,
+    get nativeDraft() { return nativeDraft; },
     showSkillMenu(open = true) {
       const menu = document.getElementById("native-skill-menu");
       if (menu) menu.setAttribute("data-open", open ? "true" : "false");

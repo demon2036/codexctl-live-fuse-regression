@@ -46,11 +46,11 @@ const SETUP = `(() => {
     originalComposerValue: "value" in composer ? composer.value : composer.textContent,
     originalScrollTop: sidebar?.scrollTop ?? null,
   };
-  const beforeInput = () => {
-    if (data.phase === "type") data.inputStart = performance.now();
+  const beforeInput = (event) => {
+    if (data.phase === "type" && composer.contains(event.target)) data.inputStart = performance.now();
   };
-  const afterInput = () => {
-    if (data.phase !== "type" || data.inputStart === null) return;
+  const afterInput = (event) => {
+    if (data.phase !== "type" || data.inputStart === null || !composer.contains(event.target)) return;
     const started = data.inputStart;
     requestAnimationFrame(() => data.input.push(performance.now() - started));
   };
@@ -76,8 +76,6 @@ const SETUP = `(() => {
     document.removeEventListener("input", afterInput, true);
     sidebar?.removeEventListener("scroll", onScroll);
     observer?.disconnect();
-    if ("value" in composer) composer.value = data.originalComposerValue;
-    else composer.textContent = data.originalComposerValue;
     if (sidebar && data.originalScrollTop !== null) sidebar.scrollTop = data.originalScrollTop;
   };
   window.__CODEXCTL_PERF_BENCH__ = data;
@@ -104,7 +102,9 @@ const COLLECT = `(() => {
   const restored = String(("value" in data.composer
     ? data.composer.value : data.composer.textContent) || "")
     === String(data.originalComposerValue || "")
-    && (!data.sidebar || data.sidebar.scrollTop === data.originalScrollTop);
+    && (!data.sidebar || data.sidebar.scrollTop === data.originalScrollTop)
+    && (window.__CODEXCTL_REGRESSION_APP__?.nativeDraft === undefined
+      || window.__CODEXCTL_REGRESSION_APP__.nativeDraft === data.originalComposerValue);
   delete window.__CODEXCTL_PERF_BENCH__;
   return { ...result, restored };
 })()`;
@@ -119,6 +119,27 @@ function metricDelta(before, after, name) {
 
 async function alignToAnimationFrame(session) {
   await session.evaluate("new Promise((resolve) => requestAnimationFrame(() => resolve(true)))");
+}
+
+async function restoreComposer(session) {
+  const draft = await session.evaluate(`(() => {
+    const data = window.__CODEXCTL_PERF_BENCH__;
+    if (!data) return null;
+    if (!data.composer.isConnected) throw new Error("Benchmark composer was replaced");
+    data.phase = "done";
+    data.composer.focus();
+    return { text: data.originalComposerValue,
+      modifiers: /Mac/.test(navigator.platform) ? 4 : 2 };
+  })()`);
+  if (!draft) return;
+  await session.send("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA",
+    modifiers: draft.modifiers, commands: ["selectAll"] });
+  await session.send("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA" });
+  for (const type of ["keyDown", "keyUp"]) await session.send("Input.dispatchKeyEvent", {
+    type, key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8,
+  });
+  if (draft.text) await session.send("Input.insertText", { text: draft.text });
+  await alignToAnimationFrame(session);
 }
 
 export async function runRendererBenchmark({
@@ -155,13 +176,14 @@ export async function runRendererBenchmark({
         await alignToAnimationFrame(session);
         await session.send("Input.dispatchMouseEvent", {
           type: "mouseWheel", x: setup.sidebar.x, y: setup.sidebar.y,
-          deltaX: 0, deltaY: index < scrollSteps / 2 ? 96 : -96,
+          deltaX: 0, deltaY: index % 2 === 0 ? 96 : -96,
         });
         if (typingIntervalMs) await new Promise((resolve) => setTimeout(resolve, typingIntervalMs));
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     const afterMetrics = await session.send("Performance.getMetrics");
+    await restoreComposer(session);
     const result = await session.evaluate(COLLECT);
     if (result.input.length < Math.floor(text.length * 0.9)) {
       throw new Error(`Input benchmark captured ${result.input.length}/${text.length} events`);
@@ -191,6 +213,7 @@ export async function runRendererBenchmark({
       targetId: session.target.id,
     };
   } finally {
+    if (setup) await restoreComposer(session).catch(() => {});
     if (setup) await session.evaluate(`window.__CODEXCTL_PERF_BENCH__?.cleanup?.();
       delete window.__CODEXCTL_PERF_BENCH__;`).catch(() => {});
     await session.send("Emulation.setFocusEmulationEnabled", { enabled: false }).catch(() => {});

@@ -14,6 +14,7 @@ import { rendererTargets } from "../src/renderer-injection.mjs";
 import { runRendererBenchmark } from "./renderer-benchmark.mjs";
 import { evaluateLinuxPlatformContract } from "./linux-platform-contract.mjs";
 import { collectPlatformCpu } from "./platform-performance.mjs";
+import { withAppSession } from "./app-cdp.mjs";
 import {
   collectPlatformRendererEvidence,
   evaluatePlatformRendererEvidence,
@@ -26,8 +27,12 @@ export function linuxRendererReady(value, mode) {
   const controlsReady = mode === "official"
     || (value?.diagnostics?.managerStatus === "ready"
       && value?.controls?.prompt?.count === 1 && value?.controls?.context?.count === 1);
-  return Boolean(value?.interactive && controlsReady
-    && value?.sidebarScroll?.found === true && value.sidebarScroll.overflowing === true);
+  const owners = value?.ownerEvidence ?? [];
+  const nativeReady = owners.some((node) => node.composer && node.visible && node.hitInside)
+    && owners.some((node) => node.target === "permissions" && node.visible && node.hitInside);
+  return Boolean(value?.interactive && controlsReady && nativeReady
+    && value?.sidebarScroll?.found === true && value.sidebarScroll.overflowing === true
+    && value.sidebarScroll.hit?.inside === true);
 }
 
 export function classifyLinuxModeFailure(error, requestedStage) {
@@ -69,16 +74,44 @@ export function linuxPlatformLaunchArguments({ mode, port, workspace } = {}) {
 async function waitForRenderer(port, mode, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   let last = null;
+  let readySamples = 0;
+  const preparation = { dialogDismissed: false, composerFocused: false };
   while (Date.now() < deadline) {
     try {
       last = await collectPlatformRendererEvidence(port, { captureScreenshot: false });
-      if (linuxRendererReady(last, mode)) {
-        return collectPlatformRendererEvidence(port, { captureScreenshot: true });
+      if (!preparation.dialogDismissed && last.ownerEvidence?.some((node) =>
+        node.hit?.className?.split(/\s+/).includes("codex-dialog-overlay"))) {
+        // Only a newly launched, owned Linux fixture reaches this helper.
+        preparation.dialogDismissed = true;
+        await withAppSession(port, async (session) => {
+          for (const type of ["keyDown", "keyUp"]) await session.send("Input.dispatchKeyEvent", {
+            type, key: "Escape", code: "Escape", windowsVirtualKeyCode: 27,
+          });
+        });
+        readySamples = 0;
+        continue;
       }
+      if (!preparation.composerFocused && linuxRendererReady(last, "official")) {
+        preparation.composerFocused = true;
+        const rect = last.ownerEvidence.find((node) => node.composer && node.hitInside).bounds;
+        await withAppSession(port, async (session) => {
+          for (const type of ["mousePressed", "mouseReleased"]) await session.send("Input.dispatchMouseEvent", {
+            type, button: "left", clickCount: 1,
+            x: rect.x + rect.width / 2, y: rect.y + rect.height / 2,
+          });
+        });
+      }
+      if (linuxRendererReady(last, mode)) {
+        readySamples += 1;
+        if (readySamples >= 2) return {
+          ...await collectPlatformRendererEvidence(port, { captureScreenshot: true }), preparation,
+        };
+      } else readySamples = 0;
     } catch {}
     await delay(100);
   }
-  if (last) return { ...last, reasonCodes: ["interactive-shell-unavailable"], status: "unverified" };
+  if (last) return { ...last, preparation,
+    reasonCodes: ["interactive-shell-unavailable"], status: "unverified" };
   return { reasonCodes: ["renderer-target-missing"], status: "unverified" };
 }
 

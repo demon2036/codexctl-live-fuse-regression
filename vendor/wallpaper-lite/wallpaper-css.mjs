@@ -2,7 +2,7 @@
 const SIDEBAR = ':is([data-app-shell-left-panel-appearance], .app-shell-left-panel, [data-testid="app-shell-floating-left-panel"])';
 // Layout markers also occur on the body, footer and input. Only the native
 // surface owns paint and rounded corners; home places that surface on its body.
-const COMPOSER = ':is(.composer-surface-chrome, [data-composer-surface-variant]:not([data-composer-utility-bar-variant="home"]), [data-composer-utility-bar-variant="home"] > [data-composer-layout])';
+export const COMPOSER = ':is(.composer-surface-chrome, [data-composer-surface-variant]:not([data-composer-utility-bar-variant="home"]), [data-composer-utility-bar-variant="home"] > [data-composer-layout])';
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
