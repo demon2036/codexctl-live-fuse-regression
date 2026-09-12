@@ -81,6 +81,23 @@ const PROBE = `(() => {
   };
   const prompt = window.__CODEX_BASE_PROMPT_SWITCHER__?.diagnostics?.() || null;
   const wallpaper = window.__CODEXCTL_WALLPAPER_V2__?.diagnostics?.() || null;
+  const nodeKind = (node) => node ? {
+    tag: node.tagName, role: node.getAttribute("role"),
+    modal: node.getAttribute("aria-modal"),
+    target: node.getAttribute("data-composer-navigation-target"),
+    composer: node.hasAttribute("data-codex-composer"),
+    footer: node.hasAttribute("data-composer-footer-responsive"),
+  } : null;
+  const ownerEvidence = [...document.querySelectorAll(
+    '[data-codex-composer], [data-composer-navigation-target="permissions"]'
+  )].slice(0, 12).map((node) => {
+    const rect = bounds(node);
+    const hit = rect && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    return { ...nodeKind(node), bounds: rect, visible: visible(node),
+      composerValue: node.getAttribute("data-codex-composer"),
+      footerAncestor: Boolean(node.closest('[data-composer-footer-responsive]')),
+      hit: nodeKind(hit), hitInside: Boolean(hit && node.contains(hit)) };
+  });
   const sidebarBounds = bounds(sidebar);
   const mainBounds = bounds(main);
   const bottom = (() => {
@@ -125,16 +142,26 @@ const PROBE = `(() => {
       context: control('[data-codex-context-window-trigger="true"]'),
     },
     diagnostics: {
+      controlContextAvailable: prompt?.controlContextAvailable ?? null,
+      controlHostHidden: prompt?.controlHostHidden ?? null,
+      controlLayout: prompt?.controlLayout ?? null,
+      controlObservers: prompt?.controlObservers ?? null,
       managerStatus: prompt?.managerStatus || null,
       promptRevision: prompt?.revision || null,
       contextRevision: prompt?.features?.context ? prompt.revision : null,
       terminalPanelVisible: visible(bottomPanel),
       wallpaperRevision: wallpaper?.revision || null,
     },
+    ownerEvidence,
     sidebarScroll: { bounds: bounds(scroll), candidateCount: scrollables.length,
       clientHeight: scroll?.clientHeight ?? null, found: Boolean(scroll),
       overflowing: Boolean(scroll && scroll.scrollHeight > scroll.clientHeight + 1),
-      scrollHeight: scroll?.scrollHeight ?? null },
+      scrollHeight: scroll?.scrollHeight ?? null,
+      hit: (() => {
+        const rect = bounds(scroll);
+        const hit = rect && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return { node: nodeKind(hit), inside: Boolean(hit && scroll.contains(hit)) };
+      })() },
     metrics: {
       observerCount: wallpaper?.metrics?.observers || 0,
       timerCount: (wallpaper?.metrics?.timers || 0)

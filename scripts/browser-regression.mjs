@@ -270,10 +270,12 @@ try {
       fixtureUrl: pathToFileURL(responsiveFile).href, profile, windowSize: "820,520",
     });
     assert.equal(responsive.error, undefined, responsive.error);
+    assert.equal(responsive.subpixel.overlap, false,
+      "PROMPT-CONTEXT-ANCHOR-001: even a fractional pixel must not overlap native controls");
     for (const state of [responsive.full, responsive.restored, responsive.reservedPadding]) {
       assert.match(state.candidate, /^direct-/, "all controls should fit before falling back to More");
       assert.deepEqual(state.controls, ["base-prompt", "context-window", "context-usage", "provider", "live-control"]);
-      assert.equal(state.overlap, false);
+      assert.equal(state.overlap, false, JSON.stringify(state));
     }
     assert.equal(responsive.narrow.overlap, false);
     assert.equal(responsive.withContextCircle.overlap, false,

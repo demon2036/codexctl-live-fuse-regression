@@ -335,6 +335,12 @@ ${contextBrowserBootstrap(Buffer.from(payload).toString("base64"))}
     };
   };
   const full = await snapshot(736);
+  const strip = footer.querySelector(".native");
+  const gap = strip.getBoundingClientRect().left - host.getBoundingClientRect().right;
+  strip.style.transform = "translateX(" + (-gap - 0.25) + "px)";
+  const subpixel = await snapshot(736);
+  strip.style.transform = "";
+  await snapshot(736);
   const circle = document.createElement("span");
   circle.setAttribute("role", "img");
   circle.setAttribute("aria-label", "Context used: 64%");
@@ -375,7 +381,7 @@ ${contextBrowserBootstrap(Buffer.from(payload).toString("base64"))}
   const recovery = await (${exerciseControlRecovery.toString()})({
     host, footer, requestClient, threadId: THREAD_A,
   });
-  return { full, withContextCircle, circleReachable, partialTargets, staleMenuClosed, progressive,
+  return { full, subpixel, withContextCircle, circleReachable, partialTargets, staleMenuClosed, progressive,
     narrow, targets, menuReachable, restored, reservedPadding, recovery };
 })().then((result) => document.getElementById("result").textContent = JSON.stringify(result))
 .catch((error) => document.getElementById("result").textContent = JSON.stringify({ error: error.message }));

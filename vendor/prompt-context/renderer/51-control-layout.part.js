@@ -46,8 +46,8 @@
     return hit === element || Boolean(hit && element.contains?.(hit));
   };
   const controlRectsOverlap = (left, right) => Math.min(left.right, right.right)
-    - Math.max(left.left, right.left) > 0.5
-    && Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 0.5;
+    - Math.max(left.left, right.left) > 0
+    && Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 0;
   const controlRectInside = (inner, outer) => inner.left >= outer.left - 0.5
     && inner.top >= outer.top - 0.5 && inner.right <= outer.right + 0.5
     && inner.bottom <= outer.bottom + 0.5;

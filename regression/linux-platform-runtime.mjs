@@ -127,6 +127,7 @@ export async function runLinuxPlatformMode({
   let port = officialPort;
   let cleanup = { orphans: [], portClosed: true, status: "pass" };
   let result;
+  let renderer = null;
   let failureStage = "launch";
   try {
     const startedAt = performance.now();
@@ -147,7 +148,7 @@ export async function runLinuxPlatformMode({
     const targets = await rendererTargets(port);
     const target = targets.find(({ url }) => url === "app://-/index.html") ?? targets[0] ?? null;
     failureStage = "renderer";
-    const renderer = await waitForRenderer(port, mode);
+    renderer = await waitForRenderer(port, mode);
     const visual = evaluatePlatformRendererEvidence({ mode, value: renderer });
     let benchmark = null;
     let cpu = null;
@@ -213,6 +214,7 @@ export async function runLinuxPlatformMode({
       status: "fail",
       reasonCodes: ["mode-execution-failed"],
       mode,
+      renderer,
       ...failure,
     };
   } finally {
