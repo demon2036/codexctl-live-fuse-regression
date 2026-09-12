@@ -8,6 +8,21 @@ export async function exerciseControlRecovery({ host, footer, requestClient, thr
   const permission = footer.querySelector('[data-composer-navigation-target="permissions"]');
   const originalButtons = [...host.children];
   const request = () => requestClient.sendRequest("turn/start", { threadId, input: [] });
+  const dismissals = [];
+  for (const action of ["Escape", "aria-expanded"]) {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:99999";
+    document.body.appendChild(overlay);
+    permission.setAttribute("aria-expanded", "true");
+    permission.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    await pause(80);
+    const hiddenWhileOpen = host.hidden;
+    overlay.remove();
+    if (action === "Escape") document.dispatchEvent(new KeyboardEvent("keydown", { key: action }));
+    else permission.setAttribute("aria-expanded", "false");
+    await pause(160);
+    dismissals.push({ action, hiddenWhileOpen, controls: visibleTargets() });
+  }
   const transitions = [];
   for (const resize of [true, false]) {
     host.querySelector('[data-codex-base-prompt-trigger="true"]').click();
@@ -50,7 +65,7 @@ export async function exerciseControlRecovery({ host, footer, requestClient, thr
   const modelReachable = model.contains(document.elementFromPoint(
     modelRect.left + modelRect.width / 2, modelRect.top + modelRect.height / 2,
   ));
-  return { before, transitions, replaced, modelReachable,
+  return { before, dismissals, transitions, replaced, modelReachable,
     inputEnsureDelta: afterInput.ensureSchedules - beforeInput.ensureSchedules,
     inputPositionDelta: afterInput.positionPasses - beforeInput.positionPasses };
 }

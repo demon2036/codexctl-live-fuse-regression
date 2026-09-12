@@ -23,7 +23,7 @@
         || !state.controlAnchor?.isConnected) scheduleEnsure();
       else scheduleControlPosition();
     });
-    const attributeFilter = ["class", "style", "hidden", "aria-hidden"];
+    const attributeFilter = ["class", "style", "hidden", "aria-hidden", "aria-expanded"];
     state.controlOwnerObserver.observe(root, {
       childList: true, subtree: true, attributes: true, attributeFilter,
     });

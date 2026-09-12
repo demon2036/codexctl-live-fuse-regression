@@ -363,5 +363,9 @@
     else Promise.resolve().then(flush);
   }
 
-  const onDocumentKeyDown = (event) => { if (event.key === "Escape") closeMenu(); };
+  const onDocumentKeyDown = (event) => {
+    if (event.key !== "Escape") return;
+    closeMenu();
+    if (state.controlHost?.hidden) scheduleControlPosition();
+  };
   const onWindowResize = () => { scheduleControlPosition(); positionMenu(); };

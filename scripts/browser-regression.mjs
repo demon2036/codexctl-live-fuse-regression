@@ -295,6 +295,11 @@ try {
       assert.deepEqual(state.controls, previous.controls, "shrinking and expanding must agree");
     }
     assert.equal(responsive.menuReachable, true);
+    for (const dismissal of responsive.recovery.dismissals) {
+      assert.equal(dismissal.hiddenWhileOpen, true);
+      assert.deepEqual(dismissal.controls, responsive.recovery.before,
+        "PROMPT-CONTEXT-SEND-RECOVERY-001: closing a native portal must restore controls");
+    }
     for (const transition of responsive.recovery.transitions) {
       assert.equal(transition.hiddenWhileUnavailable, true);
       assert.equal(transition.menuSuppressed, true,
