@@ -1,6 +1,6 @@
 {
   "name": "codexctl-local",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Cross-platform macOS/Linux controller for Codex Desktop context, prompt, wallpaper, and ephemeral relay launches.",
@@ -19,6 +19,6 @@
     "test:regression": "node ./scripts/regression.mjs"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }

@@ -4,7 +4,7 @@ Linux 发行包可能显示为 ChatGPT，而不是 Codex；控制器按实际 El
 
 ## 要求
 
-- Node.js 20+；
+- Node.js 22+，推荐 22/24 LTS；
 - glibc 环境的官方 ChatGPT/Codex Desktop 包；
 - X11、XWayland 或 Wayland 会话；
 - 可选 `zenity`/`kdialog`，只用于文件选择。
@@ -17,6 +17,32 @@ codexctl app --dry-run
 ```
 
 `doctor` 会报告 executable、内嵌 CLI、display/session、runtime、旧启动项和残留进程。
+
+安装 `master`：
+
+```bash
+git clone --branch master https://github.com/demon2036/codexctl-live-fuse-regression.git codexctl
+cd codexctl
+./scripts/install.sh
+export PATH="$HOME/.local/bin:$PATH"
+codexctl doctor
+```
+
+`codexctl` 没有第三方 Node 运行时依赖，不需要 `npm install`。安装目录可包含空格；脚本使用 POSIX shell，不依赖 macOS 工具。`CODEXCTL_NODE` 可显式选择 Node 可执行文件。
+
+官方 Linux App 当前为预览版，列出的发行版是 Ubuntu 24.04/26.04 LTS、Debian 13、Fedora 43/44，提供 x64 和 ARM64 包；这些是 App 官方支持范围，不能代替本项目在对应机器上的测试。[官方 Linux 文档](https://learn.chatgpt.com/docs/linux/linux-app)
+
+推荐跨平台统一使用 Live 入口。先正常退出现有 App：
+
+```bash
+codexctl wallpaper use yuugohan-tsuri
+codexctl prompt on
+codexctl context on
+codexctl live start
+codexctl live status --json
+```
+
+Live 使用本次 App 专属的 companion，不安装 systemd/autostart 服务。自定义安装位置可以用 `CODEX_APP_PATH=/absolute/path/to/ChatGPT codexctl live start`；状态目录自动使用当前 Linux 用户的 HOME/XDG 路径，不复制 macOS 路径、登录信息或会话数据库。更新与回退见 [LTS 维护说明](LTS.md)。
 
 ## Display backend
 

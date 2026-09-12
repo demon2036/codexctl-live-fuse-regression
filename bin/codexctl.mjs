@@ -3,6 +3,9 @@
 import { main } from "../src/cli.mjs";
 
 try {
+  if (Number(process.versions.node.split(".")[0]) < 22) {
+    throw new Error("Node.js 22+ is required; use Node.js 22 or 24 LTS.");
+  }
   await main(process.argv.slice(2));
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);

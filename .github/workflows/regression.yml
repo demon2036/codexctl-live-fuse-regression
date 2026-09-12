@@ -3,7 +3,7 @@ name: regression
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master, main]
   workflow_dispatch:
 
 permissions:
@@ -11,21 +11,38 @@ permissions:
 
 jobs:
   fast:
-    name: L1-L3 (${{ matrix.os }})
+    name: L1-L3 (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15]
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
       - run: npm run check
       - run: npm test
       - run: npm run test:browser
+
+  linux-arm64:
+    name: Linux ARM64 (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm run check
+      - run: npm test
 
   app-l4:
     name: L4 isolated Electron A/B

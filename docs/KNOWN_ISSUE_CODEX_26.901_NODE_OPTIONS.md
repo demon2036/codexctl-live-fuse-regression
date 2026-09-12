@@ -12,6 +12,11 @@ Verified against Codex/ChatGPT Desktop `26.901.22334`: live pairing completed,
 `status` returned `ready`, an App-originated plugin action committed, and the runtime
 was present again after `Page.reload`.
 
+The sections below document the previous implementation and the original failure.
+Use `codexctl live start` with the fixed CDP transport for current installations.
+The separate macOS `app --inject` preload path still requires an App build that
+permits `NODE_OPTIONS` and is not the recommended LTS entry on fused builds.
+
 ## Summary
 
 The previous `codexctl live start` implementation could not establish its local live-host connection with
@@ -129,7 +134,7 @@ release that changed the effective host-loading behavior has not been identified
 What is directly established is:
 
 1. the current App disables the `nodeOptions` fuse;
-2. the current live implementation requires `NODE_OPTIONS --require`;
+2. the previous live implementation required `NODE_OPTIONS --require`;
 3. the host socket is never created;
 4. the 20-second `ENOENT` deadline is followed by codexctl's own termination path.
 

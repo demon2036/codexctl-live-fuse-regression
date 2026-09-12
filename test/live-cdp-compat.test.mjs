@@ -101,6 +101,35 @@ test("live bootstrap binds the CDP transport and port", () => {
   assert.throws(() => validateLiveBootstrap({ ...value, debugPort: 80 }), /bootstrap is invalid/);
 });
 
+test("Linux Live keeps the desktop backend, embedded CLI and explicit startup route", async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "codexctl-linux-live-"));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const executable = path.join(directory, "ChatGPT");
+  const cli = path.join(directory, "resources", "codex");
+  await fs.mkdir(path.dirname(cli));
+  for (const filename of [executable, cli]) {
+    await fs.writeFile(filename, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  }
+  const config = createDefaultConfig();
+  config.app.path = executable;
+  const paths = resolvePaths({ HOME: directory, CODEXCTL_HOME: path.join(directory, "state") });
+  for (const linuxDisplay of ["auto", "wayland", "xwayland"]) {
+    config.app.linuxDisplay = linuxDisplay;
+    const plan = await planLiveAppLaunch(config, paths, { enabled: false, values: {} },
+      path.join(directory, "bootstrap.json"), { extraArgs: ["--open-project", directory] },
+      { HOME: directory, PATH: "/usr/bin:/bin", NODE_OPTIONS: "--require=stale.cjs" }, "linux");
+    assert.equal(plan.executable, await fs.realpath(executable));
+    assert.equal(plan.environment.CODEX_CLI_PATH, await fs.realpath(cli));
+    assert.equal(plan.environment.NODE_OPTIONS, undefined);
+    assert.equal(plan.injectionTransport, "cdp-live");
+    assert.equal(plan.argv.includes("codex://launch"), false);
+    assert.ok(plan.argv.includes("--remote-debugging-address=127.0.0.1"));
+    const expected = { auto: [], wayland: ["--ozone-platform=wayland"],
+      xwayland: ["--ozone-platform=x11"] }[linuxDisplay];
+    assert.deepEqual(plan.argv.filter((arg) => arg.startsWith("--ozone-platform=")), expected);
+  }
+});
+
 test("live CDP browser endpoint validation remains loopback-only", () => {
   const valid = "ws://127.0.0.1:19437/devtools/browser/abc-123";
   assert.equal(verifiedBrowserDebuggerUrl(valid, 19437), valid);

@@ -34,10 +34,10 @@ export async function runDoctor(paths, env = process.env, platform = process.pla
   const major = Number(process.versions.node.split(".")[0]);
   const websocketMode = typeof WebSocket === "function"
     ? "WebSocket built-in"
-    : major >= 20 ? "WebSocket via --experimental-websocket" : "无 WebSocket";
+    : "缺少内置 WebSocket；请使用 Node.js 22/24 LTS 并检查禁用 WebSocket 的启动参数";
   checks.push({
     id: "node",
-    level: major >= 20 ? "ok" : "fail",
+    level: major >= 22 && typeof WebSocket === "function" ? "ok" : "fail",
     message: `Node.js ${process.versions.node}（${websocketMode}）`,
   });
   checks.push({

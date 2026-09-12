@@ -9,7 +9,7 @@ import { renderCatalogSummary } from "../regression/catalog/report.mjs";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DOCUMENTS = [
   "README.md", "docs/ARCHITECTURE.md", "docs/CODE_SOP.md", "docs/LINUX.md",
-  "docs/REGRESSION_CATALOG.md", "docs/TESTING.md",
+  "docs/REGRESSION_CATALOG.md", "docs/TESTING.md", "docs/LTS.md",
 ];
 
 test("generated catalog is current and contains every regression case exactly once", async () => {

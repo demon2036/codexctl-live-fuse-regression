@@ -19,14 +19,14 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-NODE_BIN=$(command -v node || true)
+NODE_BIN=${CODEXCTL_NODE:-$(command -v node || true)}
 if [ -z "$NODE_BIN" ]; then
-  echo "Node.js 20+ is required" >&2
+  echo "Node.js 22+ is required (22 or 24 LTS)" >&2
   exit 1
 fi
-NODE_MAJOR=$($NODE_BIN -p 'Number(process.versions.node.split(".")[0])')
-if [ "$NODE_MAJOR" -lt 20 ]; then
-  echo "Node.js 20+ is required; found $($NODE_BIN --version)" >&2
+NODE_MAJOR=$("$NODE_BIN" -p 'Number(process.versions.node.split(".")[0])')
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "Node.js 22+ is required; found $("$NODE_BIN" --version)" >&2
   exit 1
 fi
 

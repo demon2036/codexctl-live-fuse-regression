@@ -17,7 +17,7 @@ if [ -z "$NODE_BIN" ]; then
 fi
 
 if [ -z "$NODE_BIN" ] || [ ! -x "$NODE_BIN" ]; then
-  echo "codexctl: Node.js 20+ was not found" >&2
+  echo "codexctl: Node.js 22+ was not found" >&2
   exit 127
 fi
 

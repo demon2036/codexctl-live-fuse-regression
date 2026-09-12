@@ -8,6 +8,8 @@
 
 默认连接永远是官方 OpenAI。macOS 默认启动与点击图标完全一致：走 LaunchServices、零参数、零 CDP、零注入。临时 relay 只由单次 `codexctl app -c ...` 启用，凭据不写配置、runtime 或 Git。
 
+`master` 是 1.x LTS 维护分支，接收兼容性、可靠性和安全修复。安装与更新不会自动修改正在运行的 App。支持范围、版本验证和回退步骤见 [LTS 维护说明](docs/LTS.md)。
+
 ## 性能架构
 
 当前版本把官方基线与私有 UI 功能分成两个明确入口；macOS 两条路径都兼容官方 Remote：
@@ -52,10 +54,10 @@ relay 在同一次启动中混用。
 
 ## 安装
 
-需要 Node.js 20+。
+需要 Node.js 22+，推荐仍在维护的 Node.js 22 或 24 LTS；仓库 `.nvmrc` 使用 24。
 
 ```bash
-git clone https://github.com/demon2036/codexctl.git
+git clone --branch master https://github.com/demon2036/codexctl-live-fuse-regression.git codexctl
 cd codexctl
 ./scripts/install.sh
 ```
@@ -84,10 +86,10 @@ codexctl wallpaper list
 codexctl wallpaper use yuugohan-tsuri
 codexctl prompt on
 codexctl context on
-codexctl app --inject
+codexctl live start
 ```
 
-最后一条命令会完整启动 App、完成一次性注入，然后退出控制器进程。macOS 主进程仍是 LaunchServices 零参数实例，不开启 DevTools，官方 Remote 可正常连接。不要再执行 `auto on` 或 `inject start`；常驻模式已经删除。
+先正常退出现有 App，再运行最后一条命令。Live 模式使用动态 loopback CDP，保留一个管理本次会话的 companion，不依赖容易被新版 Electron 禁用的 `NODE_OPTIONS`。它不会接管或关闭未知 App，也不会创建自动启动项。Linux 还支持下面的一次性 `app --inject` 入口；macOS preload 入口受 App fuse 限制，见 [已知兼容性问题](docs/KNOWN_ISSUE_CODEX_26.901_NODE_OPTIONS.md)。
 
 ## 项目启动策略
 
@@ -120,7 +122,7 @@ codexctl prompt status
 
 `default` 使用官方内置 instructions。历史 thread 继续使用 rollout 中原有 instructions，避免把旧记录的语义静默改掉。
 
-App 内的 `Next Base` 是严格 one-shot：选择只由紧接着发起的新 task 消费一次，创建成功后立即恢复配置的默认 profile（默认是 `default`）；创建失败且期间没有更新的 task 边界或用户选择时才恢复该 one-shot。当前和历史 task 的 rollout 都不会被改写。控件挂在 React root 外，并用原生 CSS anchor 跟随 Permissions 按钮；composer 输入重绘或增高不会删除控件，也不触发 JS 重定位。
+App 内的 `Next Base` 是严格 one-shot：选择只由紧接着发起的新 task 消费一次，创建成功后立即恢复配置的默认 profile（默认是 `default`）；创建失败且期间没有更新的 task 边界或用户选择时才恢复该 one-shot。当前和历史 task 的 rollout 都不会被改写。控件挂在 React root 外，根据原生几何跟随 Permissions；输入重绘不会删除控件，文本变化不触发布局扫描，尺寸变化才需要重新定位。
 
 Prompt 文件必须是可读普通文件，大小 1 byte–4 MiB。runtime 记录绝对路径和 SHA-256，不复制或删除原文件。
 
@@ -152,16 +154,15 @@ App 内的 `Context` 控件控制当前 task，并显示配置档位和实际 ru
 
 `native` 先按当前 task 已观测的官方容量参与切换判定；合法切换不写 window/compact override，容量未知时保持当前 task 不变。Context 从不使用 Prompt 专属的“只对下一个 task 生效”语义。272K/450K 的 runtime effective 映射分别是 258.4K/427.5K；旧 usage 只保持 pending，下一条 fresh usage 才能确认或回滚。
 
-### Context Usage 面板
+### Usage 缓存统计
 
-已建立的 task 会在 `Context` 旁显示紧凑的 `Usage` 百分比。打开后可查看：
+已建立的 task 显示 `Usage`，百分比代表最近一次模型调用的输入缓存命中率。打开后可查看：
 
-- `Current context`：当前 tokens、runtime effective window、剩余量和占比；
-- `Prompt cache`：上一轮与整个会话的 cached/input tokens、命中率和本轮未缓存输入；
-- `Context sources`：tool calls、developer、messages、tool definitions、reasoning、system prompt 等来源；
-- `Compaction`：已观测的 compact 次数，以及最后一次距今多少轮。
+- `Latest model call`：最近调用的 cached/input tokens 和未缓存输入；
+- `Current task`：当前会话累计的缓存命中率和未缓存输入；
+- `Local history`：已连接历史索引时显示累计数据，否则明确显示尚未连接。
 
-Context 与 Prompt cache 直接读取当前 App 已经持有的 usage 对象，属于精确 runtime 数据；字段不存在时显示 `—`，不会补造数字。`Context sources` 只有在 runtime 明确提供 breakdown 时才标记 `Exact`；否则只读扫描当前会话可见条目、按 authoritative current-context 总量缩放并标记 `Estimated`，无法可靠归类的部分单列为 `Unclassified runtime context`。这种降级不会启动代理、daemon、rollout 文件抓取或网络请求。
+数据读取当前 App 已经持有的 runtime 计数；字段不存在时显示不可用，不会补造 0%。原生上下文圆圈继续显示上下文占用。按钮按实际剩余宽度逐个展开，More 只包含未能展开的项目；原生圆圈、模型选择和发送按钮始终优先保留。发送时原生输入框短暂隐藏或替换，控件会保留并在安全位置自动恢复。
 
 该面板是 `codexctl` runtime 中的临时 body-level overlay：不修改、解包重打包或重新签名 `Codex.app` / `app.asar`，不替换官方资源，不改写会话对象或 Codex 用户数据。关闭受管实例后 overlay 随 renderer 一起消失，因此同一套 `codexctl` 代码可以复制到其他兼容机器；若未来 App 内部只读对象改名，最坏结果是指标显示不可用，而不是修改官方程序来强行适配。
 
@@ -243,7 +244,7 @@ npm run test:platform
 npm run test:regression
 ```
 
-`npm run check` 包含语法、循环依赖、敏感信息、renderer 模板组装、catalog/schema/预算/执行器映射和每文件最多 400 行的硬门禁。70 个必选场景的生成索引见 [回归 Case Catalog](docs/REGRESSION_CATALOG.md)；完整流程、性能预算和 review 清单见 [代码与性能 SOP](docs/CODE_SOP.md)。
+`npm run check` 包含语法、循环依赖、敏感信息、renderer 模板组装、catalog/schema/预算/执行器映射和每文件最多 400 行的硬门禁。全部场景的生成索引见 [回归 Case Catalog](docs/REGRESSION_CATALOG.md)；完整流程、性能预算和 review 清单见 [代码与性能 SOP](docs/CODE_SOP.md)。
 
 更详细的系统说明：
 
