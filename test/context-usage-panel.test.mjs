@@ -89,7 +89,8 @@ test("preserves authoritative anomaly values while bounding derived remaining co
   const trigger = harness.document.querySelector('[data-codex-context-usage-trigger="true"]');
   assert.match(trigger.textContent, /100%\+/);
   trigger.click();
-  assert.match(harness.document.querySelector(".cbps-usage-menu").textContent, /154\.80%/);
+  assert.match(harness.document.querySelector(".cbps-usage-menu").textContent, /Cached input 12 \/ 10/);
+  assert.match(trigger.getAttribute("title"), /120\.00%/);
 });
 
 test("uses a runtime-provided context source breakdown as exact data", async (t) => {
@@ -187,7 +188,7 @@ test("estimates visible context sources honestly and reports compaction history"
   });
 });
 
-test("mounts a compact Usage trigger and a complete read-only statistics panel", async (t) => {
+test("mounts a compact cache-rate trigger and a read-only Usage panel", async (t) => {
   const { harness } = await setupConversation(t, {
     latestTokenUsageInfo: {
       last: {
@@ -218,45 +219,29 @@ test("mounts a compact Usage trigger and a complete read-only statistics panel",
 
   const trigger = harness.document.querySelector('[data-codex-context-usage-trigger="true"]');
   assert.ok(trigger, "the active task should get a Usage trigger");
-  assert.match(trigger.textContent, /Usage.*79\.8%/);
+  assert.match(trigger.textContent, /Usage.*97\.7%/);
   const timerCount = harness.timers.size;
+  const observerCount = harness.mutationObservers.length;
 
   trigger.click();
   await harness.flush();
 
   const panel = harness.document.querySelector('[data-codex-context-usage-panel="true"]');
   assert.ok(panel);
-  assert.equal(panel.getAttribute("data-source-mode"), "exact");
-  assert.match(panel.textContent, /Current context/);
-  assert.match(panel.textContent, /206,242 \/ 258,400/);
-  assert.match(panel.textContent, /79\.82%/);
-  assert.match(panel.textContent, /Remaining.*52,158/);
-  assert.match(panel.textContent, /Prompt cache/);
-  assert.match(panel.textContent, /Last request.*200,192 \/ 204,944.*97\.68%/);
-  assert.match(panel.textContent, /Conversation.*4,024,832 \/ 4,233,166.*95\.08%/);
-  assert.match(panel.textContent, /Uncached this turn.*4,752/);
-  assert.match(panel.textContent, /Role breakdown.*Estimated/);
-  for (const roleLabel of [
-    "System",
-    "Developer",
-    "User",
-    "Assistant",
-    "Tool",
-    "Reasoning",
-    "Tool definitions",
-    "Unclassified",
-  ]) {
-    assert.match(panel.textContent, new RegExp(`${roleLabel}.*[0-9].*%`));
-  }
-  assert.match(panel.textContent, /Compaction.*Compactions.*1.*Last compaction.*1 turn ago/);
+  assert.equal(panel.getAttribute("data-usage-mode"), "cache");
+  assert.match(panel.textContent, /Latest model call Exact.*200,192 \/ 204,944.*97\.68%/);
+  assert.match(panel.textContent, /Current task Exact.*4,024,832 \/ 4,233,166.*95\.08%/);
+  assert.match(panel.textContent, /Uncached input 4,752 \/ 204,944.*2\.32%/);
+  assert.match(panel.textContent, /Local history Persistent.*History index is not connected yet/);
+  assert.doesNotMatch(panel.textContent, /Current context|Role breakdown|Compactions/);
   assert.equal(trigger.getAttribute("aria-controls"), panel.id);
   assert.equal(panel.getAttribute("aria-labelledby"), `${panel.id}-title`);
   assert.equal(
     panel.querySelector(".cbps-usage-progress-context").getAttribute("aria-label"),
-    "Current context",
+    "Latest model call cached input",
   );
   assert.equal(harness.timers.size, timerCount, "opening Usage must not start polling");
-  assert.equal(harness.mutationObservers.length, 0);
+  assert.equal(harness.mutationObservers.length, observerCount);
 });
 
 test("closes an open Usage panel at a task navigation boundary", async (t) => {
@@ -321,18 +306,17 @@ test("keeps the Usage panel reachable in a compact viewport", async (t) => {
     fixture.loaded.payload,
     /data-cbps-density="tight"[^}]*\.cbps-usage-trigger\s*\{[^}]*flex:\s*0\s+0\s+auto[^}]*min-width:/s,
   );
-  assert.match(fixture.loaded.payload, /applyControlPresentation\(state\.controlHost, availableWidth\)/);
+  assert.match(fixture.loaded.payload, /measureControlPresentations\(host, baseline\)/);
   assert.doesNotMatch(fixture.loaded.payload, /availableWidth < (?:300|460)/);
 });
 
 test("exposes unavailable progress as unavailable instead of zero", async (t) => {
   const { harness } = await setupConversation(t, { turns: [] });
   harness.document.querySelector('[data-codex-context-usage-trigger="true"]').click();
-  const progress = harness.document.querySelector(".cbps-usage-progress-context");
-
-  assert.equal(progress.getAttribute("aria-label"), "Current context");
-  assert.equal(progress.getAttribute("aria-valuenow"), null);
-  assert.equal(progress.getAttribute("aria-valuetext"), "Unavailable");
+  const panel = harness.document.querySelector(".cbps-usage-menu");
+  assert.match(panel.textContent, /Latest model call.*Cache data Not available yet/);
+  assert.equal(panel.querySelectorAll('[role="progressbar"]').length, 0);
+  assert.doesNotMatch(panel.textContent, /0\.00%/);
 });
 
 test("renderer payload keeps the portable non-intrusion contract", async (t) => {
@@ -343,7 +327,8 @@ test("renderer payload keeps the portable non-intrusion contract", async (t) => 
     fixture.loaded.payload,
     /app\.asar|\/Applications\/Codex\.app|codesign|asar\.(?:pack|extract)|writeFileSync|renameSync/,
   );
-  assert.doesNotMatch(fixture.loaded.payload, /new MutationObserver|new ResizeObserver/);
+  assert.doesNotMatch(fixture.loaded.payload, /observe\(document\.(?:body|documentElement)/);
+  assert.doesNotMatch(fixture.loaded.payload, /setInterval\s*\(/);
 });
 
 test("refreshes an open Usage panel from bounded token-usage notifications", async (t) => {
@@ -358,7 +343,7 @@ test("refreshes an open Usage panel from bounded token-usage notifications", asy
   harness.document.querySelector('[data-codex-context-usage-trigger="true"]').click();
   assert.match(
     harness.document.querySelector('[data-codex-context-usage-panel="true"]').textContent,
-    /120,000 \/ 258,400/,
+    /90,000 \/ 100,000.*90\.00%/,
   );
 
   conversation.latestTokenUsageInfo = {
@@ -374,7 +359,7 @@ test("refreshes an open Usage panel from bounded token-usage notifications", asy
 
   assert.match(
     harness.document.querySelector('[data-codex-context-usage-panel="true"]').textContent,
-    /220,000 \/ 258,400/,
+    /195,000 \/ 200,000.*97\.50%/,
   );
 });
 

@@ -72,11 +72,17 @@ export function contextBrowserBootstrap(encodedPayload) {
   const originalSetInterval = window.setInterval;
   const originalAddEventListener = EventTarget.prototype.addEventListener;
   let mutationObserverCount = 0;
+  const mutationScopes = [];
   let resizeObserverCount = 0;
   let intervalCount = 0;
   const hotListenerCounts = { beforeinput: 0, input: 0, scroll: 0 };
   window.MutationObserver = class extends OriginalMutationObserver {
     constructor(callback) { super(callback); mutationObserverCount += 1; }
+    observe(target, options) {
+      mutationScopes.push({ tag: target.tagName, subtree: options.subtree === true,
+        footer: target.hasAttribute?.("data-composer-footer-responsive") === true });
+      return super.observe(target, options);
+    }
   };
   window.ResizeObserver = class extends OriginalResizeObserver {
     constructor(callback) { super(callback); resizeObserverCount += 1; }

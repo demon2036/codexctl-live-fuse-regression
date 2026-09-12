@@ -110,6 +110,17 @@ test("an injected sequence rejects a visually clipped Usage value", () => {
   assert.ok(result.failures.includes("injected-usage-visibility-1"));
 });
 
+test("folded controls must all remain reachable through the More menu", () => {
+  const runs = valid();
+  runs[1].details.controlLayout.controls[0].hidden = true;
+  runs[1].details.controlLayout.overflowReachable = true;
+  assert.equal(evaluateAppSequence(runs, recovery()).status, "pass");
+  runs[1].details.controlLayout.overflowReachable = false;
+  const result = evaluateAppSequence(runs, recovery());
+  assert.equal(result.status, "fail");
+  assert.ok(result.failures.includes("injected-overflow-unreachable-1"));
+});
+
 test("native clean recovery rejects CDP, preload, renderer globals, or workers", () => {
   for (const mutate of [
     (value) => { value.snapshot.cdp = true; },

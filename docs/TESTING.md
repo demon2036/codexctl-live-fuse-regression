@@ -3,7 +3,7 @@
 ## 单一覆盖索引
 
 所有 OpenSpec Scenario 与补充质量门禁都在机器可读 catalog 中维护。生成的
-[回归 Case Catalog](REGRESSION_CATALOG.md) 是审阅入口，列出 70 个必选 case 的层级、平台、预算和公开执行命令；不要在本文复制一份容易漂移的功能清单。
+[回归 Case Catalog](REGRESSION_CATALOG.md) 是审阅入口，列出场景与补充门禁的层级、平台、预算和公开执行命令；不要在本文复制一份容易漂移的功能清单。
 
 更新 catalog 后运行：
 
@@ -46,6 +46,10 @@ npm run test:fast
 ```
 
 `test:regression` 的 `--quick` 只缩短性能样本，不会把缺少的 L4/L5 证据伪装成 pass。`fail`、`unverified`、`blocked`、`invalid` 或 cleanup failure 中任意一种都会阻止总体 pass。
+
+发送恢复的 L3 fixture 使用真实 Chromium 帧序，覆盖短暂隐藏、无 resize 恢复、修复 timer 结束后的整体替换。测试控制通道仅连接本次临时 profile 启动的 Chrome、精确匹配本次 `file://` fixture；生产 `app://` CDP 目标校验保持不变。
+
+控件允许按宽度折叠。L4 必须实际打开 More，确认被折叠项目可见可点；不能把隐藏按钮的零宽度误判为功能缺失。L4 同时记录活动 observer 总数与通过 DOM 目标核验的局部数量：二者必须相等且至多为 2，官方/仅壁纸模式必须为 0。输入与流式输出的扫描、UI 重建和额外 timer 仍为零，CPU/延迟预算不放宽。
 
 ## Ownership Envelope
 
@@ -105,7 +109,7 @@ L3/L4 使用同一真实 payload 验证以下不变量：
 - docked Sessions Sidebar 参与官方 shell 布局并推开 Main，不覆盖中间内容；
 - 只有官方相同断点的 floating variant 可以浮层；
 - Wallpaper observer/timer/layout read/reconcile/mutation 全为 0；
-- Prompt/Context host 位于 React root 外且各一份，使用 CSS anchor 跟随 composer；
+- Prompt/Context host 位于 React root 外且各一份，按实际原生几何跟随 composer；
 - 1000 组输入与 100 次导航不增加 ensure/position 工作，导航 timer 峰值不超过 3 且最终为 0。
 
 Context 请求测试必须区分配置窗口与 95% effective window：272K→258.4K，450K→427.5K。258.4K 绝不能确认 450K。空闲增大或缩小均立即作用于当前 task；active 只排队最后一个合法目标并在下一请求前应用；越过新 compact 阈值的缩容要标记下一轮自动 compact，未知 Native 仍在 unsubscribe/resume 前零请求拒绝。Context 不得显示 Prompt 专属的“只对下一个 task 生效”。

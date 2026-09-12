@@ -6,7 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { makePayload } from "../test-support/prompt-renderer-harness.mjs";
-import { contextBrowserFixture } from "./context-browser-fixture.mjs";
+import { contextBrowserFixture, responsiveControlBrowserFixture } from "./context-browser-fixture.mjs";
+import { compileSource as compileControls } from "../vendor/prompt-context/injector.mjs";
+import { runFrameFixture } from "./browser-frame-runner.mjs";
 import {
   browserCandidates,
   chromeArgs,
@@ -139,7 +141,9 @@ function assertContext(result, expectedWidth) {
   assert.equal(result.error, undefined, result.error);
   assert.equal(result.viewport.width, expectedWidth);
   assert.equal(result.managerStatus, "ready");
-  assert.equal(result.mutationObserverCount, 0);
+  assert.equal(result.mutationObserverCount, 1);
+  assert.ok(result.mutationScopes.every((scope) => !scope.subtree || scope.footer),
+    "only the native footer may be observed recursively");
   assert.equal(result.firstPromptPath === null, false);
   assert.equal(result.secondPromptPath, null);
   assert.equal(result.promptResetToDefault, true);
@@ -255,6 +259,56 @@ try {
     );
     assertContext(context, 1000);
     assertContext(resizedContext, 820);
+    const responsiveFile = path.join(runRoot, "responsive.html");
+    const live = compileControls(contextPayload.loaded.source, {
+      liveControl: { enabled: true, sessionId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" },
+    });
+    await fs.writeFile(responsiveFile, responsiveControlBrowserFixture(live.payload));
+    const profile = path.join(runRoot, "responsive");
+    await fs.mkdir(profile);
+    const responsive = await runFrameFixture(browser, {
+      fixtureUrl: pathToFileURL(responsiveFile).href, profile, windowSize: "820,520",
+    });
+    assert.equal(responsive.error, undefined, responsive.error);
+    for (const state of [responsive.full, responsive.restored, responsive.reservedPadding]) {
+      assert.match(state.candidate, /^direct-/, "all controls should fit before falling back to More");
+      assert.deepEqual(state.controls, ["base-prompt", "context-window", "context-usage", "provider", "live-control"]);
+      assert.equal(state.overlap, false);
+    }
+    assert.equal(responsive.narrow.overlap, false);
+    assert.equal(responsive.withContextCircle.overlap, false,
+      "custom controls must not cover the native context usage circle");
+    assert.equal(responsive.circleReachable, true, "native context tooltip must remain reachable");
+    assert.ok(responsive.withContextCircle.controls.length >= 4,
+      "PROMPT-CONTEXT-ANCHOR-001: spare width must show at least three controls beside More");
+    const inline = responsive.withContextCircle.controls.filter((target) => target !== "control-overflow");
+    assert.equal(responsive.partialTargets.some((target) => inline.includes(target)), false,
+      "More must only contain controls that did not fit inline");
+    assert.deepEqual([...inline, ...responsive.partialTargets].sort(), responsive.full.controls.toSorted(),
+      "every control must remain accessible exactly once");
+    assert.equal(responsive.staleMenuClosed, true, "a changed layout must dismiss the stale More menu");
+    for (const state of responsive.progressive) {
+      assert.equal(state.overlap, false, `native controls must remain clear at ${state.width}px`);
+      const previous = responsive.progressive.find((entry) => entry.width === state.width);
+      assert.deepEqual(state.controls, previous.controls, "shrinking and expanding must agree");
+    }
+    assert.equal(responsive.menuReachable, true);
+    for (const transition of responsive.recovery.transitions) {
+      assert.equal(transition.hiddenWhileUnavailable, true);
+      assert.equal(transition.menuSuppressed, true,
+        "PROMPT-CONTEXT-SEND-RECOVERY-001: unavailable owners must dismiss their menus");
+      assert.deepEqual(transition.controls, responsive.recovery.before,
+        "PROMPT-CONTEXT-SEND-RECOVERY-001: sending must restore every available control");
+      assert.equal(transition.buttonsPreserved, true, "a transient owner must not destroy controls");
+    }
+    assert.equal(responsive.recovery.modelReachable, true);
+    assert.equal(responsive.recovery.replaced.hiddenWhileDetached, true);
+    assert.equal(responsive.recovery.replaced.buttonsPreserved, true);
+    assert.deepEqual(responsive.recovery.replaced.controls, responsive.recovery.before);
+    assert.equal(responsive.recovery.inputEnsureDelta, 0);
+    assert.equal(responsive.recovery.inputPositionDelta, 0);
+    assert.deepEqual(responsive.targets,
+      ["context-usage", "base-prompt", "context-window", "provider", "live-control"]);
     report = {
       schema: "codexctl-browser-regression/1",
       browser: path.basename(browser),
@@ -266,6 +320,7 @@ try {
         "WALLPAPER-SIDEBAR-DOCKED-GEOMETRY-001",
         "WALLPAPER-ZERO-HOTPATH-004",
         "PROMPT-CONTEXT-ANCHOR-001",
+        "PROMPT-CONTEXT-SEND-RECOVERY-001",
         "PROMPT-DEFAULT-THREAD-002",
         "PROMPT-NEXT-BASE-003",
         "CONTEXT-COPY-SEMANTICS-001",

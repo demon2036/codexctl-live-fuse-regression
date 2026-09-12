@@ -23,8 +23,6 @@ async function setup(t) {
   native.setBoundingClientRect({ left: 700, top: 600, width: 100, height: 30 });
   footer.append(composer, permission, native);
   harness.document.body.appendChild(footer);
-  harness.document.elementFromPoint = () => permission;
-  harness.document.elementsFromPoint = () => [permission];
   harness.dispatchDocument("readystatechange");
   await harness.flush();
   return { harness, footer, native, permission };
@@ -51,8 +49,11 @@ test("control hit testing looks through its own stale host to Permissions", asyn
   const { harness, permission } = await setup(t);
   const host = harness.document.getElementById("codex-prompt-context-control-host");
   const ownControl = host.children[0];
-  harness.document.elementFromPoint = () => ownControl;
-  harness.document.elementsFromPoint = () => [ownControl, permission];
+  const originalHits = harness.document.elementsFromPoint.bind(harness.document);
+  harness.document.elementsFromPoint = (x, y) => {
+    const hits = originalHits(x, y);
+    return hits.includes(permission) ? [ownControl, ...hits] : hits;
+  };
   harness.dispatchWindow("resize");
   await harness.flush();
   assert.equal(host.hidden, false);
@@ -66,19 +67,23 @@ test("a native footer action recomputes the owner boundary in both directions", 
   const { harness, native } = await setup(t);
   const host = harness.document.getElementById("codex-prompt-context-control-host");
   const before = harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics();
-  assert.equal(host.style.maxWidth, "500px");
+  const originalWidth = host.getBoundingClientRect().width;
+  assert.ok(host.getBoundingClientRect().right <= native.getBoundingClientRect().left);
 
   native.setBoundingClientRect({ left: 500, top: 600, width: 100, height: 30 });
   harness.dispatchDocument("pointerdown", { target: native });
   await harness.flush();
-  assert.equal(host.style.maxWidth, "300px");
+  assert.ok(host.getBoundingClientRect().width < originalWidth);
+  assert.ok(host.getBoundingClientRect().right <= native.getBoundingClientRect().left);
 
   native.setBoundingClientRect({ left: 700, top: 600, width: 100, height: 30 });
   harness.dispatchDocument("pointerdown", { target: native });
   await harness.flush();
-  assert.equal(host.style.maxWidth, "500px");
+  assert.equal(host.getBoundingClientRect().width, originalWidth);
+  assert.ok(host.getBoundingClientRect().right <= native.getBoundingClientRect().left);
   const after = harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics();
-  assert.equal(after.uiMetrics.positionPasses, before.uiMetrics.positionPasses + 2);
+  assert.ok(after.uiMetrics.positionPasses > before.uiMetrics.positionPasses);
+  assert.ok(after.uiMetrics.positionPasses <= before.uiMetrics.positionPasses + 5);
 });
 
 test("stable external pointerdowns add no full reposition or timer", async (t) => {

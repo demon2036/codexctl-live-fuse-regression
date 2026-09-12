@@ -23,6 +23,7 @@ import {
   probeRemote,
   probeVisual,
   waitForInjectedModules,
+  waitForIdleMetrics,
   withAppSession,
 } from "./app-cdp.mjs";
 
@@ -202,6 +203,7 @@ export function createElectronAppAdapter({
       return result;
     },
     async metrics() {
+      await waitForIdleMetrics(fixture.port);
       if (benchmarkOptions) {
         benchmark = await runRendererBenchmark({ port: fixture.port, ...benchmarkOptions });
       }

@@ -49,7 +49,7 @@ function fakeAdapter(platform, overrides = {}) {
       calls.push("metrics");
       return {
         cpuMedian: 1, cpuP95: 2, inputMaxMs: 4, inputP95Ms: 2,
-        layoutReads: 0, longTaskCount: 0, observerCount: 0,
+        layoutReads: 0, longTaskCount: 0, observerCount: 0, scopedObserverCount: 0,
         scrollMaxMs: 5, scrollP95Ms: 3, timerCount: 0, workerCount: 0,
       };
     },
@@ -148,4 +148,17 @@ test("probe result rejects private or unknown fields", async () => {
   const result = await runAppProbe({ adapter: fakeAdapter("macos"), mode: "official", request: {} });
   result.token = "secret";
   assert.match(validateAppProbeResult(result).map(({ message }) => message).join("\n"), /未知字段.*token/);
+});
+
+test("only the two verified native-control observers are accepted", async () => {
+  const baseline = await fakeAdapter("linux").metrics();
+  for (const [observerCount, scopedObserverCount, expected] of [
+    [2, 2, "pass"], [1, 0, "fail"], [2, 1, "fail"], [3, 3, "fail"], [0.5, 0.5, "fail"],
+  ]) {
+    const adapter = fakeAdapter("linux", {
+      async metrics() { return { ...baseline, observerCount, scopedObserverCount }; },
+    });
+    const result = await runAppProbe({ adapter, mode: "injected", request: {} });
+    assert.equal(result.status, expected);
+  }
 });

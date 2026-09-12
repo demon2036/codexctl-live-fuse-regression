@@ -11,6 +11,7 @@ import {
   sampleCpuSegment,
 } from "./cpu-sampler.mjs";
 import { runRendererSegment } from "./renderer-segment-workload.mjs";
+import { validControlObservations } from "./control-observations.mjs";
 
 const GROUP_ORDERS = Object.freeze([
   Object.freeze(["official", "injected", "injected", "official"]),
@@ -151,7 +152,10 @@ export function evaluateAppCpuPerformance(runs, { phases: selectedPhases } = {})
       failures.push(`cpu-probe-${index}`);
     }
     if (run.result?.processTree?.controllerCount !== 0) failures.push(`cpu-controller-${index}`);
-    for (const field of ["observerCount", "timerCount", "workerCount"]) {
+    if (!validControlObservations(run.result?.metrics, run.mode === "injected")) {
+      failures.push(`cpu-observerCount-${index}`);
+    }
+    for (const field of ["timerCount", "workerCount"]) {
       if (run.result?.metrics?.[field] !== 0) failures.push(`cpu-${field}-${index}`);
     }
     for (const phase of phases) {

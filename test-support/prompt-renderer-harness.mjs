@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import { loadPayload } from "../vendor/prompt-context/injector.mjs";
+import { harnessBoundingRect, harnessComputedStyle } from "./renderer-layout-harness.mjs";
 
 function memoryStorage() {
   const values = new Map();
@@ -16,6 +17,7 @@ function memoryStorage() {
 export function rendererHarness(payload, { windowOverrides = {} } = {}) {
   let timerSequence = 0;
   const timers = new Map();
+  const animationFrames = new Map();
   const idleCallbacks = { scheduled: 0, cancelled: 0 };
   const mutationObservers = [];
   const documentListeners = new Map();
@@ -34,6 +36,7 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
   class FakeNode {
     constructor(tagName = "div") {
       this.tagName = String(tagName).toUpperCase();
+      this.nodeType = 1;
       this.children = [];
       this.parentElement = null;
       this.dataset = {};
@@ -43,7 +46,11 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
       this.isConnected = true;
       this.attributes = new Map();
       this.listeners = new Map();
-      this.classList = { add() {}, remove() {}, contains() { return false; } };
+      this.classList = {
+        contains: (name) => this.className.split(/\s+/).includes(name),
+        add: (...names) => { this.className = [...new Set([...this.className.split(/\s+/), ...names])].join(" ").trim(); },
+        remove: (...names) => { this.className = this.className.split(/\s+/).filter((name) => !names.includes(name)).join(" "); },
+      };
       this._textContent = "";
       Object.defineProperty(this, "textContent", {
         configurable: true,
@@ -66,6 +73,7 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
     }
 
     appendChild(child) {
+      if (child.parentElement) child.remove();
       child.parentElement = this;
       child.isConnected = true;
       this.children.push(child);
@@ -81,6 +89,7 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
       if (this.parentElement) {
         this.parentElement.children = this.parentElement.children.filter((item) => item !== this);
       }
+      this.parentElement = null;
     }
 
     setAttribute(name, value) {
@@ -90,8 +99,17 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
         const key = name.slice(5).replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
         this.dataset[key] = text;
       }
+      if (!this.rectExplicit && name === "data-composer-footer-responsive") {
+        this.boundingRect = { x: 80, y: 600, left: 80, top: 600, right: 1080, bottom: 720,
+          width: 1000, height: 120 };
+      }
+      if (!this.rectExplicit && name === "data-composer-navigation-target" && value === "permissions") {
+        this.boundingRect = { x: 100, y: 680, left: 100, top: 680, right: 200, bottom: 708,
+          width: 100, height: 28 };
+      }
     }
     getAttribute(name) { return this.attributes.get(name) ?? null; }
+    hasAttribute(name) { return this.attributes.has(name); }
     removeAttribute(name) {
       this.attributes.delete(name);
       if (name.startsWith("data-")) {
@@ -117,6 +135,7 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
     }
     click() { return this.dispatchEvent({ type: "click" }); }
     matches(selector) {
+      if (selector.includes(",")) return selector.split(",").some((part) => this.matches(part.trim()));
       if (selector === "*") return true;
       const attribute = String(selector).match(/^\[([a-z0-9-]+)(?:="([^"]*)")?\]$/i);
       if (attribute) {
@@ -147,15 +166,16 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
       }
       return null;
     }
-    contains(candidate) { return candidate === this || this.children.includes(candidate); }
+    contains(candidate) { return candidate === this || this.children.some((child) => child.contains(candidate)); }
     setBoundingClientRect(rect) {
+      this.rectExplicit = true;
       this.boundingRect = { ...this.boundingRect, ...rect };
       this.boundingRect.x = this.boundingRect.left;
       this.boundingRect.y = this.boundingRect.top;
       this.boundingRect.right = this.boundingRect.left + this.boundingRect.width;
       this.boundingRect.bottom = this.boundingRect.top + this.boundingRect.height;
     }
-    getBoundingClientRect() { return { ...this.boundingRect }; }
+    getBoundingClientRect() { return harnessBoundingRect(this); }
   }
 
   const allElements = () => {
@@ -185,6 +205,15 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
       if (!root) return [];
       return [...(root.matches?.(selector) ? [root] : []), ...root.querySelectorAll(selector)];
     },
+    elementsFromPoint(x, y) {
+      return allElements().reverse().filter((node) => {
+        const style = harnessComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return node.isConnected && style.display !== "none" && style.visibility !== "hidden"
+          && x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
+      });
+    },
+    elementFromPoint(x, y) { return this.elementsFromPoint(x, y)[0] ?? null; },
     addEventListener(name, listener) { addListener(documentListeners, name, listener); },
     removeEventListener(name, listener) { removeListener(documentListeners, name, listener); },
   };
@@ -193,6 +222,7 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
     removeEventListener(name, listener) { removeListener(windowListeners, name, listener); },
     innerWidth: 1280,
     innerHeight: 800,
+    getComputedStyle: harnessComputedStyle,
     ...windowOverrides,
   };
   window.window = window;
@@ -223,11 +253,13 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
       idleCallbacks.cancelled += 1;
       clearTimer(identifier);
     },
-    requestAnimationFrame(callback) { callback(); return 1; },
-    cancelAnimationFrame() {},
-    getComputedStyle() {
-      return { display: "block", visibility: "visible", opacity: "1", pointerEvents: "auto" };
+    requestAnimationFrame(callback) {
+      const id = ++timerSequence;
+      animationFrames.set(id, callback);
+      return id;
     },
+    cancelAnimationFrame(id) { animationFrames.delete(id); },
+    getComputedStyle: window.getComputedStyle,
     console,
     Date,
     JSON,
@@ -277,11 +309,17 @@ export function rendererHarness(payload, { windowOverrides = {} } = {}) {
       return true;
     },
     async flush() {
-      for (let pass = 0; pass < 4; pass += 1) await Promise.resolve();
+      for (let pass = 0; pass < 16; pass += 1) {
+        await Promise.resolve();
+        const frames = [...animationFrames.values()];
+        animationFrames.clear();
+        for (const callback of frames) callback();
+      }
     },
     cleanup() {
       window.__CODEX_BASE_PROMPT_SWITCHER__?.cleanup?.();
       timers.clear();
+      animationFrames.clear();
     },
   };
 }

@@ -2,7 +2,7 @@
 
 > 此文件由 `npm run catalog` 从 `regression/catalog/` 生成；请勿手工维护条目。
 
-共 75 个必选 case：72 个 OpenSpec Scenario，3 个补充门禁。
+共 76 个必选 case：73 个 OpenSpec Scenario，3 个补充门禁。
 
 | Case ID | Capability | Scenario | 层级 | 平台 | 预算 | 执行入口 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -28,6 +28,7 @@
 | `WALLPAPER-SIDEBAR-DOCKED-GEOMETRY-001` | app-experience-regression | 桌面 Sessions 侧栏展开时推开主内容 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `WALLPAPER-ZERO-HOTPATH-004` | app-experience-regression | Wallpaper 稳态不响应输入和滚动 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `PROMPT-CONTEXT-ANCHOR-001` | app-experience-regression | 控件随 composer 扩展而定位正确 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
+| `PROMPT-CONTEXT-SEND-RECOVERY-001` | app-experience-regression | 发送后原生输入框恢复时控件完整恢复 | L3 | all | — | npm run test:browser |
 | `PROMPT-DEFAULT-THREAD-002` | app-experience-regression | Prompt 默认值和当前 thread 保持明确 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |
 | `PROMPT-NEXT-BASE-003` | app-experience-regression | Developer Prompt 的 Next Base 只消费一次 | L1 / L3 / L4 | all | — | npm run test:fast<br>npm run test:browser<br>npm run test:app |
 | `CONTEXT-COPY-SEMANTICS-001` | app-experience-regression | Context 文案不继承 Prompt one-shot 语义 | L1 / L3 | all | — | npm run test:fast<br>npm run test:browser |

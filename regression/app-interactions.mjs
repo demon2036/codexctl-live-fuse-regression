@@ -1,44 +1,6 @@
 import { withAppSession } from "./app-cdp.mjs";
 
-function add(failures, condition, code) {
-  if (condition) failures.push(code);
-}
-
-export function evaluateAppInteractions(value = {}) {
-  const failures = [];
-  for (const [field, actual] of Object.entries(value.prompt ?? {})) {
-    add(failures, actual !== true, `prompt-${field}`);
-  }
-  const context = value.context ?? {};
-  for (const field of [
-    "activeAppliedBeforeTurn", "activeLabelCurrentThread", "copyClean",
-    "failureRolledBack", "idempotentNoRequest", "largeVerified", "nativeNoOverride",
-    "retryRecovered", "shrinkApplied",
-  ]) add(failures, context[field] !== true, `context-${field}`);
-  add(failures, context.activeCoalescedWindow !== 600000, "context-active-window");
-  add(failures, context.immediateOrder !== "thread/read,thread/unsubscribe,thread/resume",
-    "context-immediate-order");
-  add(failures, context.largeWindow !== 450000 || context.largeCompact !== 400000,
-    "context-450k-mapping");
-  add(failures, context.oaiWindow !== 272000 || context.oaiEffective !== 258400,
-    "context-272k-mapping");
-  for (const [field, actual] of Object.entries(value.layout ?? {})) {
-    add(failures, actual !== true, `layout-${field}`);
-  }
-  const stress = value.stress ?? {};
-  add(failures, stress.graphAttempts > 1, "stress-manager-graph");
-  add(failures, stress.navigationPeakTimers < 1 || stress.navigationPeakTimers > 3,
-    "stress-navigation-peak");
-  for (const field of [
-    "inputEnsureDelta", "inputPositionDelta", "navigationEndTimers", "observerCount",
-    "settledTimerCount", "workerCount",
-  ]) add(failures, stress[field] !== 0, `stress-${field}`);
-  add(failures, stress.wallpaperDeltaZero !== true, "stress-wallpaper");
-  add(failures, Object.values(stress.hotListeners ?? {}).some((count) => count !== 0),
-    "stress-hot-listeners");
-  const unique = [...new Set(failures)];
-  return { failures: unique, status: unique.length ? "fail" : "pass" };
-}
+export { evaluateAppInteractions } from "./app-interaction-contract.mjs";
 
 const INTERACTION_EXPRESSION = `(async () => {
   const api = window.__CODEX_BASE_PROMPT_SWITCHER__;
@@ -58,8 +20,13 @@ const INTERACTION_EXPRESSION = `(async () => {
     return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
       width: rect.width, height: rect.height };
   };
-  const aligned = (host, permission) => Math.abs(host.left - permission.right - 5) < 1
-    && Math.abs(host.top - permission.top) < 1 && host.right <= innerWidth + 1;
+  const aligned = (host, permission) => {
+    const row = getComputedStyle(document.getElementById("permission").parentElement);
+    const gap = Number.parseFloat(row.columnGap === "normal" ? row.gap : row.columnGap) || 0;
+    return host.width > 1 && Math.abs(host.left - permission.right - gap) < 1
+      && Math.abs((host.top + host.height / 2) - (permission.top + permission.height / 2)) < 1
+      && host.right <= innerWidth + 1;
+  };
   const hitTarget = (node) => {
     const rect = node?.getBoundingClientRect();
     if (!node || !rect || rect.width <= 1 || rect.height <= 1) return false;
@@ -76,6 +43,18 @@ const INTERACTION_EXPRESSION = `(async () => {
     const EventType = type.startsWith("pointer") ? PointerEvent : MouseEvent;
     hit.dispatchEvent(new EventType(type, { bubbles: true, clientX: x, clientY: y }));
     return hit === node || node.contains(hit);
+  };
+  const openControl = async (button) => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (hitTarget(button)) { dispatchAt(button, "click"); return; }
+    const more = await waitFor(() => {
+      const node = document.querySelector('[data-codex-control-overflow-trigger="true"]');
+      return hitTarget(node) ? node : null;
+    }, "More trigger");
+    dispatchAt(more, "click");
+    const item = await waitFor(() => document.querySelector('[data-codex-overflow-target="'
+      + button.dataset.composerNavigationTarget + '"]'), "overflow item");
+    if (!dispatchAt(item, "click")) throw new Error("overflow item is not reachable");
   };
   const profile = (id, label, contextWindow, autoCompactTokenLimit) => ({
     id, label, contextWindow, autoCompactTokenLimit, scope: "total",
@@ -102,7 +81,7 @@ const INTERACTION_EXPRESSION = `(async () => {
     '[data-codex-context-window-trigger="true"]',
   );
   const chooseContext = async (label) => {
-    contextButton().click();
+    await openControl(contextButton());
     const menu = await waitFor(() => document.querySelector(".cbps-context-menu"), "context-menu");
     const item = [...menu.querySelectorAll(".cbps-menu-item")].find((node) =>
       (label === "Native" && node.querySelector(".cbps-item-label")?.textContent.startsWith("Native /"))
@@ -117,7 +96,7 @@ const INTERACTION_EXPRESSION = `(async () => {
 
   const promptButton = document.querySelector('[data-codex-base-prompt-trigger="true"]');
   const defaultVisible = /Default/.test(promptButton?.textContent || "");
-  promptButton.click();
+  await openControl(promptButton);
   const promptMenu = await waitFor(() => document.querySelector(".cbps-menu:not(.cbps-context-menu)"), "prompt-menu");
   const work = [...promptMenu.querySelectorAll(".cbps-menu-item")].find((node) =>
     node.querySelector(".cbps-item-label")?.textContent === "Work");
@@ -230,7 +209,7 @@ const INTERACTION_EXPRESSION = `(async () => {
     && [...host.querySelectorAll(".cbps-control")]
       .every((node) => getComputedStyle(node).pointerEvents === "auto");
 
-  promptButton.click();
+  await openControl(promptButton);
   const coexistMenu = await waitFor(() => document.querySelector(".cbps-menu"), "coexist-menu");
   const coexistRect = bounds(coexistMenu);
   fixture.showSkillMenu(true);
@@ -248,7 +227,9 @@ const INTERACTION_EXPRESSION = `(async () => {
   const menuZ = Number(getComputedStyle(coexistMenu).zIndex);
   const toastZ = Number(getComputedStyle(toast).zIndex);
   const skillZ = Number(getComputedStyle(skillMenu).zIndex);
-  const customOverlaysHosted = coexistMenu.parentElement === host && toast?.parentElement === host;
+  const customOverlaysHosted = coexistMenu.parentElement === document.body
+    && toast?.parentElement === document.body
+    && coexistMenu.getAttribute("data-codex-control-overlay") === "true";
   const nativeSkillsAboveCustom = [hostZ, menuZ, toastZ]
     .every((value) => Number.isFinite(value) && value < skillZ);
   const skillMenuReachableWithCustom = hitTarget(skillMenu);
@@ -276,7 +257,7 @@ const INTERACTION_EXPRESSION = `(async () => {
     && narrowHost.width === 0 && narrowHost.height === 0;
   const narrowHostContained = host.hidden !== true
     && narrowHost.right <= narrowNativeContext.left - 4
-    && [...host.querySelectorAll(".cbps-control")].every((node) => {
+    && [...host.querySelectorAll(".cbps-control")].filter((node) => bounds(node).width > 1).every((node) => {
       const rect = bounds(node);
       return rect.width > 1 && rect.height > 1
         && rect.left >= narrowHost.left - 0.5 && rect.right <= narrowHost.right + 0.5;
@@ -321,6 +302,7 @@ const INTERACTION_EXPRESSION = `(async () => {
     threadId: fixture.threadId, input: [{ type: "text", text: "fixture send" }],
   });
   fixture.unmountComposer();
+  await delay(0);
   const detachedHostBounds = bounds(host);
   const suppressedAtComposerDetach = getComputedStyle(host).display === "none"
     && detachedHostBounds.width === 0 && detachedHostBounds.height === 0;
@@ -380,8 +362,8 @@ const INTERACTION_EXPRESSION = `(async () => {
       inputPositionDelta: afterInput.uiMetrics.positionPasses - beforeInput.uiMetrics.positionPasses,
       navigationEndTimers: navigationEnd.activeTimers.navigation,
       navigationPeakTimers: navigationPeak.activeTimers.navigation,
-      observerCount: fixture.counters.mutationObservers + fixture.counters.resizeObservers
-        + (wallpaperAfter.observers || 0),
+      observerCount: fixture.observerSnapshot().active + (wallpaperAfter.observers || 0),
+      scopedObserverCount: fixture.observerSnapshot().scoped,
       settledTimerCount: timerCount,
       wallpaperDeltaZero,
       workerCount: fixture.counters.workers,

@@ -55,7 +55,7 @@ codexctl live start      -> dynamic loopback CDP -> persistent companion
 
 Hook 严格读取当前不可变 generation 的 spec，立即从 `process.env` 删除 hook 参数，在 primary `app://` 文档 `dom-ready` 时安装模块，并原子写入一次回执。LaunchServices 需要的环境使用显式 `open --env` 传递，避免 GUI 启动吞掉 spec/result 路径。每次主文档导航都会废弃旧安装代次；最终文档只允许最新代次提交回执。
 
-`macos-preload-budget.cjs` 是 hook 阶段与父事务的单一预算来源，父 deadline 覆盖 hook 的最坏有限路径和文件交接余量，不再使用会抢先杀死合法安装的固定 15 秒等待。生命周期、asset 传输和回执校验分别位于小型职责模块。回执绑定 App PID、最终 renderer URL、Prompt/Context revision、Wallpaper revision 与零 observer/timer 合同；没有 composer 的登录/首页文档可返回已安装但 controls dormant 的状态，后续真实导航仍由 renderer 自身的有限 navigation lifecycle 挂载控件。成功或失败后 preload listener/timer 都释放；不创建 watcher、轮询、supervisor 或后台 worker。
+`macos-preload-budget.cjs` 是 hook 阶段与父事务的单一预算来源，父 deadline 覆盖 hook 的最坏有限路径和文件交接余量，不再使用会抢先杀死合法安装的固定 15 秒等待。生命周期、asset 传输和回执校验分别位于小型职责模块。回执绑定 App PID、最终 renderer URL、模块 revision 与性能计数；Wallpaper 保持零 observer/timer，控件仅保留局部几何观察。没有 composer 的登录/首页可返回 controls dormant，后续真实导航由 renderer 的有限生命周期挂载控件。成功或失败后 preload listener/timer 都释放；不创建 watcher、轮询、supervisor 或后台 worker。
 
 ## Linux/隔离模式一次性 CDP
 
@@ -102,7 +102,9 @@ Prompt/Context renderer 被拆成小型职责片段：
 - composer 控件；
 - diagnostics 与生命周期。
 
-片段按固定顺序组装后做整体验证。启动时的 manager 搜索有对象数、深度、单片耗时与尝试次数上限。Prompt/Context 控件位于 `document.body` 下、React root 之外的独立 host；composer reconciliation 无权删除它。控件通过 Chromium 原生 CSS anchor 跟随 Permissions 按钮，旧内核保留单次内联坐标回退。UI 不安装全 document subtree/resize observer，只在首次安装及真实导航动作后做有限修复。因此字符输入和流式 token 不会触发 DOM 扫描、定位或重建。
+片段按固定顺序组装后做整体验证。启动时的 manager 搜索有对象数、深度、单片耗时与尝试次数上限。Prompt/Context 控件位于 `document.body` 下、React root 之外的独立 host；composer reconciliation 无权删除它。布局根据实际按钮宽度、原生几何和命中区域选择可展示的控件，其余项目保留在 More；不写入原生按钮的 anchor 属性。
+
+一个 MutationObserver 只递归观察 footer、直接观察父节点；一个 ResizeObserver 跟随原生布局。发送导致 owner 短暂不可用时隐藏 host 并保留按钮、事件及局部观察，owner 恢复或替换后自动恢复。输入及流式内容的 mutation 被直接过滤，字符事件不触发扫描或重建；已有 owner 的几何未变时，普通外部点击不重复定位。cleanup 断开两类观察和所有有限 timer。
 
 Prompt 与 Context 的 request transform 独立。`Next Base` 通过版本化 claim 只供紧接着的新 task 使用一次，成功后恢复配置默认 profile；失败回滚不能覆盖更新的 task 边界或用户选择，也不会改写当前 rollout。
 

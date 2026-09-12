@@ -34,7 +34,8 @@ test("a non-interactive footer wrapper does not consume the native-control bound
   const host = harness.document.getElementById("codex-prompt-context-control-host");
   assert.ok(host);
   assert.equal(host.hidden, false, "layout wrappers are not native hit targets");
-  assert.equal(host.style.maxWidth, "400px");
+  assert.match(host.dataset.cbpsActiveCandidate, /^direct-/);
+  assert.ok(host.getBoundingClientRect().right <= modelButton.getBoundingClientRect().left);
   assert.equal(host.querySelectorAll('[data-codex-base-prompt-trigger="true"]').length, 1);
   assert.equal(host.querySelectorAll('[data-codex-context-window-trigger="true"]').length, 1);
   assert.equal(host.querySelectorAll('[data-codex-provider-indicator="true"]').length, 1);

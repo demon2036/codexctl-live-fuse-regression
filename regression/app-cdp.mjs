@@ -103,20 +103,36 @@ const CONTROL_EXPRESSION = `(() => {
       });
   const hostRect = host?.getBoundingClientRect();
   const permissionRect = permission?.getBoundingClientRect();
+  const rowStyle = permission && getComputedStyle(permission.parentElement);
+  const gap = Number.parseFloat(rowStyle?.columnGap === "normal" ? rowStyle?.gap : rowStyle?.columnGap) || 0;
   const anchored = Boolean(hostRect && permissionRect
-    && Math.abs(hostRect.left - permissionRect.right - 5) < 1
-    && Math.abs(hostRect.top - permissionRect.top) < 1
+    && Math.abs(hostRect.left - permissionRect.right - gap) < 1
+    && Math.abs((hostRect.top + hostRect.height / 2)
+      - (permissionRect.top + permissionRect.height / 2)) < 1
     && hostRect.left >= 0 && hostRect.right <= innerWidth
     && hostRect.top >= 0 && hostRect.bottom <= innerHeight);
   const value = (selector) => {
     const nodes = [...document.querySelectorAll(selector)];
-    const node = nodes[0];
+    let node = nodes[0];
+    let overflowReachable = true;
+    if (node && node.getBoundingClientRect().width <= 1) {
+      const target = node.dataset.composerNavigationTarget;
+      const more = host?.querySelector('[data-codex-control-overflow-trigger="true"]');
+      more?.click();
+      const item = document.querySelector('[data-codex-overflow-target="' + target + '"]');
+      const itemRect = item?.getBoundingClientRect();
+      const hit = itemRect && document.elementFromPoint(itemRect.left + itemRect.width / 2,
+        itemRect.top + itemRect.height / 2);
+      overflowReachable = Boolean(item && (hit === item || item.contains(hit)));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      node = more;
+    }
     const rect = node?.getBoundingClientRect();
     return {
       bounds: rect ? { height: rect.height, width: rect.width, x: rect.x, y: rect.y }
         : { height: 0, width: 0, x: 0, y: 0 },
       count: nodes.length,
-      reachable: Boolean(anchored && node && rect.width > 1 && rect.height > 1
+      reachable: Boolean(anchored && overflowReachable && node && rect.width > 1 && rect.height > 1
         && getComputedStyle(node).visibility !== "hidden" && (() => {
           const hit = document.elementFromPoint(
             rect.left + rect.width / 2,
@@ -136,6 +152,7 @@ const METRIC_EXPRESSION = `(() => {
   const prompt = window.__CODEX_BASE_PROMPT_SWITCHER__?.diagnostics?.() ?? null;
   const wallpaper = window.__CODEXCTL_WALLPAPER_V2__?.diagnostics?.() ?? null;
   const fixture = window.__CODEXCTL_REGRESSION_APP__;
+  const observers = fixture?.observerSnapshot?.() ?? { active: 0, scoped: 0 };
   const activeTimers = Object.values(prompt?.activeTimers ?? {}).reduce((sum, value) => sum + value, 0);
   return {
     cpuMedian: 0,
@@ -144,8 +161,8 @@ const METRIC_EXPRESSION = `(() => {
     inputP95Ms: fixture?.interaction?.inputP95Ms ?? 0,
     layoutReads: wallpaper?.metrics?.layoutReads ?? 0,
     longTaskCount: fixture?.interaction?.longTaskCount ?? 0,
-    observerCount: (wallpaper?.metrics?.observers ?? 0)
-      + (fixture?.counters?.mutationObservers ?? 0) + (fixture?.counters?.resizeObservers ?? 0),
+    observerCount: (wallpaper?.metrics?.observers ?? 0) + observers.active,
+    scopedObserverCount: observers.scoped,
     scrollMaxMs: fixture?.interaction?.scrollMaxMs ?? 0,
     scrollP95Ms: fixture?.interaction?.scrollP95Ms ?? 0,
     timerCount: (wallpaper?.metrics?.timers ?? 0) + activeTimers
@@ -164,6 +181,19 @@ export function probeControls(port) {
 
 export function probeMetrics(port) {
   return withAppSession(port, (session) => session.evaluate(METRIC_EXPRESSION));
+}
+
+export function waitForIdleMetrics(port, timeoutMs = 5000) {
+  return withAppSession(port, async (session) => {
+    const deadline = Date.now() + timeoutMs;
+    let metrics;
+    do {
+      metrics = await session.evaluate(METRIC_EXPRESSION);
+      if (metrics.timerCount === 0) return metrics;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    } while (Date.now() < deadline);
+    return metrics; // The unchanged steady-state gate rejects a leaked timer.
+  });
 }
 
 export function probeRemote(port) {
@@ -196,6 +226,21 @@ export function probeInstallationDetails(port) {
       } : null;
     };
     const host = document.getElementById('codex-prompt-context-control-host');
+    const controls = [...(host?.children ?? [])].filter((node) =>
+      node.dataset.composerNavigationTarget !== "control-overflow");
+    const hidden = controls.filter((node) => node.getBoundingClientRect().width <= 1);
+    let overflowReachable = hidden.length === 0;
+    if (hidden.length) {
+      host.querySelector('[data-codex-control-overflow-trigger="true"]')?.click();
+      overflowReachable = hidden.every((node) => {
+        const item = document.querySelector('[data-codex-overflow-target="'
+          + node.dataset.composerNavigationTarget + '"]');
+        const rect = item?.getBoundingClientRect();
+        const hit = rect && document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return Boolean(item && rect.width > 1 && rect.height > 1 && (hit === item || item.contains(hit)));
+      });
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    }
     return {
       globals: {
         prompt: Boolean(window.__CODEX_BASE_PROMPT_SWITCHER__),
@@ -203,6 +248,7 @@ export function probeInstallationDetails(port) {
       },
       hostCount: document.querySelectorAll('#codex-prompt-context-control-host').length,
       controlLayout: {
+        overflowReachable,
         host: rect(host),
         permission: rect([...document.querySelectorAll(
           '[data-composer-navigation-target="permissions"]',
@@ -210,10 +256,11 @@ export function probeInstallationDetails(port) {
           const bounds = node.getBoundingClientRect();
           return bounds.width > 1 && bounds.height > 1;
         })),
-        controls: [...(host?.children ?? [])].map((node) => {
+        controls: controls.map((node) => {
           const prefix = node.querySelector('.cbps-label-prefix');
           const value = node.querySelector('.cbps-label-value');
           return {
+            hidden: node.getBoundingClientRect().width <= 1,
             bounds: rect(node),
             className: node.className,
             lineHeight: getComputedStyle(node).lineHeight,

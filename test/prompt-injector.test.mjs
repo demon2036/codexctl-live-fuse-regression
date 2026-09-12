@@ -87,10 +87,10 @@ test("Prompt controls live outside the React composer reconciliation boundary", 
   t.after(() => fs.rm(fixture.directory, { recursive: true, force: true }));
   assert.match(fixture.loaded.payload, /document\.body\.appendChild\(host\)/);
   assert.match(fixture.loaded.payload, /codex-prompt-context-control-host/);
-  assert.match(fixture.loaded.payload, /anchor-name:\s*--codexctl-composer-controls/);
-  assert.match(fixture.loaded.payload, /position-anchor:\s*--codexctl-composer-controls/);
-  assert.match(fixture.loaded.payload, /left:\s*calc\(anchor\(right\)\s*\+\s*5px\)/);
-  assert.match(fixture.loaded.payload, /controlHost\.style\.left\s*=/);
+  assert.match(fixture.loaded.payload, /\.cbps-control-host\s*\{[^}]*position:\s*fixed/s);
+  assert.match(fixture.loaded.payload, /baseline\.permission\.rect\.right \+ baseline\.gap/);
+  assert.match(fixture.loaded.payload, /nativeBaselineMatches\(baseline\)/);
+  assert.doesNotMatch(fixture.loaded.payload, /position-anchor:|anchor-name:/);
   assert.doesNotMatch(fixture.loaded.payload,
     /html:not\(\[data-codexctl-wallpaper="active"\]\) (?:\.thread-scroll-container|:is\()/s);
   assert.doesNotMatch(fixture.loaded.payload,
@@ -98,11 +98,10 @@ test("Prompt controls live outside the React composer reconciliation boundary", 
   assert.match(fixture.loaded.payload,
     /\.cbps-control-host\s*\{[^}]*pointer-events:\s*none\s*!important/s);
   assert.doesNotMatch(fixture.loaded.payload, /insertAdjacentElement/);
-  assert.doesNotMatch(fixture.loaded.payload, /new MutationObserver/);
-  assert.doesNotMatch(fixture.loaded.payload, /new ResizeObserver/);
+  assert.doesNotMatch(fixture.loaded.payload, /observe\(document\.(?:body|documentElement)/);
 });
 
-test("Prompt controls mark only the current Permissions owner and restore prior state", async (t) => {
+test("Prompt controls follow the current Permissions owner without changing native attributes", async (t) => {
   const fixture = await makePayload();
   t.after(() => fs.rm(fixture.directory, { recursive: true, force: true }));
   const harness = rendererHarness(fixture.loaded.payload);
@@ -134,17 +133,17 @@ test("Prompt controls mark only the current Permissions owner and restore prior 
   const host = harness.document.getElementById("codex-prompt-context-control-host");
   assert.equal(host.parentElement, harness.document.body);
   assert.equal(first.getAttribute("data-codexctl-control-anchor"), null);
-  assert.equal(second.getAttribute("data-codexctl-control-anchor"), "true");
-  assert.equal(host.getAttribute("data-cbps-anchor-active"), "true");
+  assert.equal(second.getAttribute("data-codexctl-control-anchor"), "legacy");
   assert.equal(harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().controlAnchorAttached, true);
-  assert.equal(host.style.left, "525px", "inline coordinates remain the compatibility fallback");
+  assert.equal(host.style.left, "525px", "measured placement follows the native row gap");
   assert.equal(host.style.top, "640px");
 
   first.setBoundingClientRect({ width: 100, height: 28 });
   second.setBoundingClientRect({ width: 0, height: 0 });
   harness.dispatchWindow("resize");
   await harness.flush();
-  assert.equal(first.getAttribute("data-codexctl-control-anchor"), "true");
+  assert.equal(first.getAttribute("data-codexctl-control-anchor"), null);
+  assert.equal(host.style.left, "405px");
   assert.equal(second.getAttribute("data-codexctl-control-anchor"), "legacy");
 
   harness.window.__CODEX_BASE_PROMPT_SWITCHER__.cleanup();

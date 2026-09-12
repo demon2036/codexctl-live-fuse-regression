@@ -50,26 +50,29 @@ export function evaluateAppSequence(runs, nativeRecovery) {
         || details.wallpaperStyleCount !== 1, `injected-accumulation-${index}`);
       const controlLayout = details.controlLayout ?? {};
       const controls = Array.isArray(controlLayout.controls) ? controlLayout.controls : [];
+      const visibleControls = controls.filter((control) => !control.hidden);
       push(failures, controls.length !== 4, `injected-control-count-${index}`);
+      push(failures, controls.some((control) => control.hidden) && controlLayout.overflowReachable !== true,
+        `injected-overflow-unreachable-${index}`);
       const hostBounds = controlLayout.host;
-      push(failures, controls.some(({ bounds }) => !bounds || bounds.width <= 1 || bounds.height <= 1
+      push(failures, visibleControls.some(({ bounds }) => !bounds || bounds.width <= 1 || bounds.height <= 1
         || !hostBounds || bounds.left < hostBounds.left - 0.5
         || bounds.right > hostBounds.right + 0.5), `injected-control-bounds-${index}`);
       push(failures, controls.some(({ className }) => !String(className).startsWith("cbps-control cbps-trigger")),
         `injected-control-class-${index}`);
       push(failures, controls.some(({ lineHeight }) => lineHeight !== "18px"),
         `injected-control-line-height-${index}`);
-      push(failures, controls.some((entry, controlIndex) => controlIndex > 0
-        && entry.bounds.left < controls[controlIndex - 1].bounds.right - 0.5),
+      push(failures, visibleControls.some((entry, controlIndex) => controlIndex > 0
+        && entry.bounds.left < visibleControls[controlIndex - 1].bounds.right - 0.5),
       `injected-control-overlap-${index}`);
-      push(failures, controls.some((entry, controlIndex) => controlIndex < controls.length - 1
-        && entry.bounds.right > controls[controlIndex + 1].bounds.left + 0.5),
+      push(failures, visibleControls.some((entry, controlIndex) => controlIndex < visibleControls.length - 1
+        && entry.bounds.right > visibleControls[controlIndex + 1].bounds.left + 0.5),
       `injected-control-order-${index}`);
       const usageControl = controls.find(({ className }) => (
         String(className).includes("cbps-usage-trigger")
       ));
-      push(failures, !usageControl || usageControl.prefixDisplay === "none"
-        || usageControl.valueFits !== true,
+      push(failures, !usageControl || (!usageControl.hidden && (usageControl.prefixDisplay === "none"
+        || usageControl.valueFits !== true)),
       `injected-usage-visibility-${index}`);
       injectedRevisions.push(`${details.promptRevision}:${details.wallpaperRevision}`);
     } else {

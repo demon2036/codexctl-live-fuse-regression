@@ -1,3 +1,5 @@
+import { validControlObservations } from "./control-observations.mjs";
+
 const RESULT_FIELDS = [
   "schema", "platform", "mode", "status", "reasonCodes", "identity", "remote",
   "processTree", "visual", "controls", "metrics", "diagnostics", "cleanup",
@@ -14,7 +16,7 @@ const CONTROL_FIELDS = ["context", "prompt"];
 const CONTROL_VALUE_FIELDS = ["bounds", "count", "reachable"];
 const METRIC_FIELDS = [
   "cpuMedian", "cpuP95", "inputMaxMs", "inputP95Ms", "layoutReads", "longTaskCount",
-  "observerCount", "scrollMaxMs", "scrollP95Ms", "timerCount", "workerCount",
+  "observerCount", "scopedObserverCount", "scrollMaxMs", "scrollP95Ms", "timerCount", "workerCount",
 ];
 const DIAGNOSTIC_FIELDS = ["contextRevision", "promptRevision", "wallpaperRevision"];
 const CLEANUP_FIELDS = ["orphans", "status"];
@@ -241,7 +243,9 @@ function semanticResult(parts, mode, modules) {
     fail(control.count !== Number(enabled), `${name}-control-count`);
     fail(control.reachable !== enabled, `${name}-control-unreachable`);
   }
-  for (const field of ["layoutReads", "longTaskCount", "observerCount", "timerCount", "workerCount"]) {
+  fail(!validControlObservations(parts.metrics,
+    mode === "injected" && (modules.prompt || modules.context)), "steady-observer-count");
+  for (const field of ["layoutReads", "longTaskCount", "timerCount", "workerCount"]) {
     fail(parts.metrics[field] !== 0, `steady-${field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`);
   }
   fail(parts.cleanup.status !== "pass" || parts.cleanup.orphans.length !== 0, "cleanup-failed");

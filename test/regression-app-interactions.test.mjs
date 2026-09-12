@@ -20,7 +20,7 @@ function valid() {
     stress: {
       graphAttempts: 1, hotListeners: { beforeinput: 0, input: 0, scroll: 0 },
       inputEnsureDelta: 0, inputPositionDelta: 0, navigationEndTimers: 0,
-      navigationPeakTimers: 2, observerCount: 0, settledTimerCount: 0,
+      navigationPeakTimers: 2, observerCount: 0, scopedObserverCount: 0, settledTimerCount: 0,
       wallpaperDeltaZero: true, workerCount: 0,
     },
   };

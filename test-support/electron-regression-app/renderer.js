@@ -135,11 +135,46 @@
   const OriginalWorker = window.Worker;
   const originalSetInterval = window.setInterval;
   const originalAddEventListener = EventTarget.prototype.addEventListener;
+  const observations = new Map();
+  const observerSnapshot = () => {
+    const footer = document.getElementById("composer-footer");
+    let active = 0;
+    let scoped = 0;
+    for (const { kind, targets } of observations.values()) {
+      if (!targets.size) continue;
+      active += 1;
+      const valid = footer && (kind === "mutation" ? targets.size <= 2 : targets.size <= 64)
+        && [...targets].every(([target, options]) => kind === "mutation"
+          ? target === footer || target === footer.parentElement && options.subtree !== true
+          : target !== document.body && target !== document.documentElement
+            && (target === footer || footer.contains(target) || target.contains(footer)));
+      if (valid) scoped += 1;
+    }
+    return { active, scoped };
+  };
   window.MutationObserver = class extends OriginalMutationObserver {
-    constructor(callback) { super(callback); counters.mutationObservers += 1; }
+    constructor(callback) {
+      super(callback);
+      counters.mutationObservers += 1;
+      observations.set(this, { kind: "mutation", targets: new Map() });
+    }
+    observe(target, options) {
+      observations.get(this).targets.set(target, options);
+      return super.observe(target, options);
+    }
+    disconnect() { observations.get(this).targets.clear(); return super.disconnect(); }
   };
   window.ResizeObserver = class extends OriginalResizeObserver {
-    constructor(callback) { super(callback); counters.resizeObservers += 1; }
+    constructor(callback) {
+      super(callback);
+      counters.resizeObservers += 1;
+      observations.set(this, { kind: "resize", targets: new Map() });
+    }
+    observe(target, options = {}) {
+      observations.get(this).targets.set(target, options);
+      return super.observe(target, options);
+    }
+    disconnect() { observations.get(this).targets.clear(); return super.disconnect(); }
   };
   if (OriginalWorker) {
     window.Worker = class extends OriginalWorker {
@@ -165,6 +200,7 @@
     threadId: THREAD,
     calls,
     counters,
+    observerSnapshot,
     manager,
     conversation,
     nativeEvents,

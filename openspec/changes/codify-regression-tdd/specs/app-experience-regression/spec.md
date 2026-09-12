@@ -91,11 +91,11 @@ Wallpaper 回归 SHALL 同时验证结构样式、真实 computed style、真实
 - **THEN** Wallpaper diagnostics 的 observer、timer、layoutReads、reconcile 和 DOM mutation 计数不增长，且不存在 blur、filter、固定背景或持续动画
 
 ### Requirement: Prompt 与 Context 行为和位置一致
-Prompt/Context 回归 SHALL 验证控件、菜单、请求转换、历史 thread 语义和 diagnostics。控件 MUST 位于 React root 外且只存在一份，并通过浏览器原生定位能力跟随 composer；普通输入、滚动和流式输出不得触发布局扫描或 UI reconciliation。
+Prompt/Context 回归 SHALL 验证控件、菜单、请求转换、历史 thread 语义和 diagnostics。控件 MUST 位于 React root 外且只存在一份，根据原生几何与命中区域跟随 composer；普通输入、滚动和流式输出不得触发布局扫描或 UI reconciliation。
 
 #### Scenario: 控件随 composer 扩展而定位正确
 - **WHEN** composer 从单行扩展到多行、窗口缩放并切换 Sessions
-- **THEN** Dev 与 Context 控件继续与 Permissions 控件对齐、可点击、未遮挡、未重复，位置更新不依赖 input/scroll listener、MutationObserver、ResizeObserver 或轮询
+- **THEN** Dev 与 Context 通过直接按钮或 More 可达，与 Permissions 对齐、未遮挡、未重复；最多一个 footer MutationObserver 和一个原生几何 ResizeObserver，禁止全对话观察、input/scroll listener 和轮询
 
 #### Scenario: Prompt 默认值和当前 thread 保持明确
 - **WHEN** 没有显式 Prompt 覆盖的新 task 被创建
@@ -113,8 +113,12 @@ Prompt/Context 回归 SHALL 验证控件、菜单、请求转换、历史 thread
 - **WHEN** 连续切换 100 次 Sessions 并产生 1000 组输入事件
 - **THEN** 活动导航修复 timer 不超过 3，结束后 navigation/toast/bridge timer 全为 0，manager 深层发现最多一次，输入前后的 ensureSchedules 和 positionPasses 不增长
 
+#### Scenario: 发送后原生输入框恢复时控件完整恢复
+- **WHEN** 发送使原生输入框短暂隐藏或整体替换，并在短期修复 timer 结束后恢复
+- **THEN** 保留已有按钮和事件，在原生边界重新可用后自动恢复可容纳的控件；More 不得变成空菜单，不得要求用户缩放窗口或再次发送
+
 ### Requirement: Context 是当前 thread 的可变实时控制
-当前 thread 已建立时，Context 菜单 SHALL 控制该 thread，而不是只设置新 task 默认值。系统 MUST 以当前已应用的配置容量作为比较下限：明确 preset 比较 `model_context_window`，双方均有明确 compact 阈值时还 MUST 保证目标阈值不降低；已经完成 resume 但等待 fresh usage 的目标也计入当前已应用容量。`native` MUST 先按当前 App、model 和 provider 解析为可比较的官方容量，不能把空 override 当作不可热切换。只有同档或增大的目标可以修改当前 thread；缩小、无法可靠比较或不满足 token 安全条件的目标 MUST 在任何 unsubscribe/resume 之前失败并保持原配置。
+当前 thread 已建立时，Context 菜单 SHALL 控制该 thread，而不是只设置新 task 默认值。系统 MUST 比较当前与目标的 `model_context_window` 和明确的 compact 阈值；已经完成 resume 但等待 fresh usage 的目标也计入当前已应用容量。合法目标可以增大或缩小；当前 token 超过目标 compact 阈值时 MUST 标记下一轮需要 compact 并保留历史。`native` MUST 先按当前 App、model 和 provider 解析为可比较的官方容量；无法可靠比较的目标 MUST 在任何 unsubscribe/resume 之前失败并保持原配置。
 
 “立即生效” MUST 指目标在下一次尚未发出的模型请求之前应用：空闲 thread 立即执行；已有回复正在生成时不得中断或追溯修改该请求，而应在本轮完成后的第一个安全请求边界应用，并阻止下一请求抢先使用旧 Context。排队和验证 MUST 由现有请求生命周期事件驱动，不得新增 observer、轮询或常驻 worker。
 
@@ -122,8 +126,8 @@ Prompt/Context 回归 SHALL 验证控件、菜单、请求转换、历史 thread
 - **WHEN** Context 为 `native` 并发起 thread start 或 resume 请求
 - **THEN** codexctl 不写 model context window、auto compact limit 或伪造 token usage 字段
 
-#### Scenario: 空闲 thread 同档或增大立即生效
-- **WHEN** 当前 thread 空闲且用户选择与当前已应用容量相同或更大的明确 Context
+#### Scenario: 空闲 thread 的合法目标立即生效
+- **WHEN** 当前 thread 空闲且用户选择任意合法的明确 Context
 - **THEN** 系统立即通过当前 thread 的安全 resume 路径应用目标配置，按钮显示目标配置值并进入 fresh usage 验证状态；用户无需创建新 task 或重新注入 App
 
 #### Scenario: 正在生成时在当前 thread 的安全边界生效

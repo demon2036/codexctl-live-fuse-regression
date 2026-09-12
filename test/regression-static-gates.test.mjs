@@ -38,16 +38,24 @@ test("quality sources contain no committed skip or only escape hatch", async () 
   assert.deepEqual(violations, []);
 });
 
-test("[TDD-ZERO-STEADY-STATE-008] renderer sources add no observer, interval, or hot-path listener", async () => {
+test("[TDD-ZERO-STEADY-STATE-008] only native control geometry is observed without interval or hot-path listeners", async () => {
   const roots = [
     path.join(ROOT, "vendor", "prompt-context", "renderer"),
     path.join(ROOT, "vendor", "wallpaper-lite"),
   ];
   const filenames = (await Promise.all(roots.map((root) => files(root)))).flat();
-  const source = (await Promise.all(filenames.map((filename) => (
-    fs.readFile(filename, "utf8")
-  )))).join("\n");
-  assert.doesNotMatch(source, /new\s+(?:MutationObserver|ResizeObserver)\s*\(/);
+  const sources = await Promise.all(filenames.map((filename) => fs.readFile(filename, "utf8")));
+  for (const [index, filename] of filenames.entries()) {
+    if (path.basename(filename) !== "52-control-observers.part.js") {
+      assert.doesNotMatch(sources[index], /new\s+(?:MutationObserver|ResizeObserver)\s*\(/);
+    } else {
+      assert.equal((sources[index].match(/new MutationObserver\(/g) ?? []).length, 1);
+      assert.equal((sources[index].match(/new ResizeObserver\(/g) ?? []).length, 1);
+      assert.match(sources[index], /const root = context\?\.footer \?\? state\.controlOwnerObserverRoot/);
+      assert.doesNotMatch(sources[index], /document\.(?:querySelector|getElementById)|\.observe\(document\./);
+    }
+  }
+  const source = sources.join("\n");
   assert.doesNotMatch(source, /setInterval\s*\(/);
   assert.doesNotMatch(source, /(?:document|window|state\.controlComposer|state\.controlAnchor)\s*\.\s*addEventListener\s*\(\s*["'](?:input|scroll)["']/);
 });

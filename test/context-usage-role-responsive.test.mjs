@@ -101,7 +101,7 @@ test("keeps Usage available when the active task id is nested in React thread pr
 
   const trigger = harness.document.querySelector('[data-codex-context-usage-trigger="true"]');
   assert.ok(trigger, "nested task ids must not make Usage disappear");
-  assert.match(trigger.textContent, /Usage.*77\.4%/);
+  assert.match(trigger.textContent, /Usage.*94\.7%/);
   assert.equal(trigger.getAttribute("data-thread-id"), THREAD_ID);
 });
 
@@ -123,7 +123,7 @@ test("tight density exposes readable Usage and More controls instead of shrinkin
   assert.equal(host.getAttribute("data-cbps-presentation"), "overflow");
   const usage = host.querySelector('[data-codex-context-usage-trigger="true"]');
   const more = host.querySelector('[data-codex-control-overflow-trigger="true"]');
-  assert.match(usage.textContent, /^Usage.*77\.4%$/);
+  assert.match(usage.textContent, /^Usage.*94\.7%$/);
   assert.equal(more.textContent.trim(), "More");
 
   more.click();

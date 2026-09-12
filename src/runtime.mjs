@@ -47,7 +47,7 @@ function engineSourceFiles(config, paths, options = {}) {
         "12-provider-state", "15-request-client", "20-client-discovery", "22-client-probe",
         "25-context-policy", "27-usage-metrics", "30-context-switch", "35-custom-context-menu", "40-menus",
         "42-usage-menu", "45-control-style", "48-live-control", "49-provider-control", "49-overflow-control",
-        "50-controls", "51-control-layout", "60-lifecycle"].map((name) => path.join(
+        "50-controls", "51-control-layout", "52-control-observers", "59-diagnostics", "60-lifecycle"].map((name) => path.join(
         paths.projectRoot, "vendor", "prompt-context", "renderer", `${name}.part.js`,
       )),
       path.join(paths.projectRoot, "vendor", "prompt-context", "VERSION"),

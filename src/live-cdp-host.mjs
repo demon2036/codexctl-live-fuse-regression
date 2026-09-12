@@ -321,4 +321,4 @@ export async function connectLiveCdpHost(options) {
   return new LiveCdpHost(options).start();
 }
 
-export { LIVE_ACTION_BINDING, verifiedBrowserDebuggerUrl };
+export { BrowserSession, LIVE_ACTION_BINDING, verifiedBrowserDebuggerUrl };

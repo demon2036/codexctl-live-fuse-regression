@@ -250,49 +250,6 @@
     return host;
   };
 
-  const controlOwnerSignal = (node) => node?.nodeType === 1 && (node.matches?.(
-    CONTROL_OWNER_SIGNAL_SELECTOR,
-  ) || node.querySelector?.(CONTROL_OWNER_SIGNAL_SELECTOR));
-  const syncControlOwnerObserver = (context = null) => {
-    const root = context?.footer?.closest?.('[data-app-shell-main-surface]')
-      ?? document.querySelector?.('[data-app-shell-main-surface]')
-      ?? document.getElementById?.('root')
-      ?? null;
-    if (root === state.controlOwnerObserverRoot) return;
-    state.controlOwnerObserver?.disconnect();
-    state.controlOwnerObserverRoot = root;
-    if (!root || typeof MutationObserver !== "function") return;
-    if (!state.controlOwnerObserver) state.controlOwnerObserver = new MutationObserver((records) => {
-      if (state.stopped) return;
-      const relevant = records.some((record) => !state.controlComposer?.contains?.(record.target)
-        && (controlOwnerSignal(record.target)
-          || [...record.addedNodes, ...record.removedNodes].some(controlOwnerSignal)));
-      if (!relevant) return;
-      if (!state.controlComposer?.isConnected || !state.controlFooter?.isConnected
-        || !state.controlAnchor?.isConnected) scheduleEnsure();
-      else scheduleControlPosition();
-    });
-    state.controlOwnerObserver.observe(root, { childList: true, subtree: true });
-  };
-  const syncControlResizeObserver = (context = null, protectedNodes = []) => {
-    const targets = new Set(context ? [
-      context.composer, context.footer, context.permissionButton, ...protectedNodes,
-    ] : []);
-    for (let element = context?.footer?.parentElement;
-      element && element !== document.body; element = element.parentElement) targets.add(element);
-    const next = [...targets].filter((element) => element?.isConnected !== false);
-    if (next.length === state.controlResizeTargets.length
-      && next.every((target, index) => target === state.controlResizeTargets[index])) return;
-    state.controlResizeObserver?.disconnect();
-    state.controlResizeTargets = next;
-    state.controlResizeWidths.clear();
-    if (!next.length || typeof ResizeObserver !== "function") return;
-    if (!state.controlResizeObserver) state.controlResizeObserver = new ResizeObserver(() => {
-      if (!state.stopped) scheduleControlPosition();
-    });
-    for (const target of next) state.controlResizeObserver.observe(target);
-  };
-
   const positionControlHost = () => {
     state.controlPositionQueued = false;
     if (state.stopped || !state.controlHost?.isConnected) return;
@@ -308,6 +265,13 @@
     const usageButton = state.controlHost.querySelector('[data-codex-context-usage-trigger="true"]');
     const providerIndicator = state.controlHost.querySelector('[data-codex-provider-indicator="true"]');
     const liveButton = state.controlHost.querySelector('[data-codex-live-control-trigger="true"]');
+    if ((featureEnabled("prompt") && !promptButton)
+      || (featureEnabled("context") && (!contextButton || !usageButton))
+      || (featureEnabled("provider") && !providerIndicator)
+      || (liveControlEnabled() && !liveButton)) {
+      scheduleEnsure();
+      return;
+    }
     if (promptButton) renderButton(promptButton, composer);
     if (contextButton) renderContextButton(contextButton, composer);
     if (usageButton) renderUsageButton(usageButton, composer);
@@ -331,6 +295,14 @@
     const context = controlContext();
     const host = ensureControlHost();
     if (!host) return;
+    if (!context) {
+      // Sending can briefly hide or replace the native owner. Preserve the
+      // controls and their handlers so a later layout event can restore them.
+      layoutControlHost(null, host);
+      if (state.menu) closeMenu();
+      notifyHealthChanged();
+      return;
+    }
     const permissionButton = context?.permissionButton;
     const composer = context?.composer;
     let promptButton = host.querySelector('[data-codex-base-prompt-trigger="true"]');

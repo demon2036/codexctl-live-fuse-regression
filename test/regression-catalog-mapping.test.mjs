@@ -15,7 +15,7 @@ test("[TDD-CATALOG-NEW-CASE-012] every OpenSpec Scenario maps to a stable regres
   const missing = scenarios.filter((scenario) => !mapped.has(key(scenario)));
   assert.deepEqual(missing, []);
   assert.equal(mapped.size, scenarios.length);
-  assert.equal(scenarios.length, 70);
+  assert.equal(scenarios.length, 71);
 });
 
 test("[TDD-CROSS-LAYER-MAPPING-014] multi-layer cases retain one executor per declared boundary", () => {

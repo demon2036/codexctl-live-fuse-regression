@@ -26,11 +26,13 @@
 
 Wallpaper 的稳态合同是纯静态样式与 Blob：observer=0、timer=0、layout read=0。Prompt/Context 只允许启动时的有界查找，以及真实导航后的有限修复；打字和流式输出不得触发 UI reconciliation。
 
-Prompt/Context 启动必须优先走 memo-cache 快速路径；深层 React 图搜索最多执行一次并在浏览器空闲切片中运行。Sessions 连续导航只能保留最新一组修复任务，活动修复 timer 上限为 3；composer 位置跟随使用原生 CSS anchor，普通点击和输入事件不得触发布局定位，也不得为此新增 MutationObserver、ResizeObserver 或轮询。macOS preload 回执必须同时证明 Mutation 为 0、导航/Toast/Bridge timer 为 0。
+Prompt/Context 启动必须优先走 memo-cache 快速路径；深层 React 图搜索最多执行一次并在浏览器空闲切片中运行。Sessions 连续导航只能保留最新一组修复任务，活动修复 timer 上限为 3。控件使用实际几何与命中检测，保持原生按钮的属性和尺寸不变。
+
+几何修复最多使用一个 MutationObserver 和一个 ResizeObserver。前者仅递归观察 footer、直接观察其父节点；后者仅观察 composer、footer、原生控件及布局祖先。禁止观察整个对话或全 document 子树。输入/流式内容记录必须直接过滤，不触发扫描或重建；稳态外部点击不重复定位。自动验收必须核对实际 observer 的目标、数量、cleanup 释放，以及 input/stream 前后的工作量，而不能把累计创建数量当成活动数量。Wallpaper 仍严格为零 observer。
 
 Context 必须区分配置窗口和 Codex token usage 上报的有效窗口。当前兼容合同只接受配置原值或精确的 95% 有效值（272K→258.4K、450K→427.5K）；450K 绝不能把 258.4K 判为成功。新 task、历史 resume、当前 task 热切换和 UI 展示必须共用同一匹配函数。
 
-当前 task 的 Context 切换资格必须先由纯函数判定：任意合法档位均可进入事务；缩小 window、降低 compact 阈值或当前 token 已越过新阈值时标记下一轮需要 compact，只有 Native 容量未知等不可判定目标才在任何 read/unsubscribe/resume 前拒绝。回复 active 时只在既有请求生命周期中合并一个最新合法目标，并在下一模型请求前完成应用；不得为排队新增 timer、observer、worker 或轮询。fresh usage 验证失败必须恢复已确认记录。
+当前 task 的 Context 切换资格必须先由纯函数判定：任意合法档位均可进入事务；缩小 window 或降低 compact 阈值时保留历史，当前 token 已越过新阈值时标记下一轮需要 compact。只有 Native 容量未知等不可判定目标才在任何 read/unsubscribe/resume 前拒绝。回复 active 时只在既有请求生命周期中合并一个最新合法目标，并在下一模型请求前完成应用；不得为排队新增 timer、observer、worker 或轮询。fresh usage 验证失败必须恢复已确认记录。
 
 Developer Prompt 的 `Next Base` 是版本化 one-shot。新 task 请求必须先原子 claim，再恢复配置默认 profile；请求失败只能在 claim 仍是最新 task 边界且用户没有新选择时回滚，不能污染当前或历史 rollout。
 

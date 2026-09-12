@@ -8,6 +8,7 @@ const rows = [
   ["WALLPAPER-SIDEBAR-DOCKED-GEOMETRY-001", "Wallpaper 完整视觉与零稳态开销", "桌面 Sessions 侧栏展开时推开主内容", ["L1", "L3", "L4"], ["all"]],
   ["WALLPAPER-ZERO-HOTPATH-004", "Wallpaper 完整视觉与零稳态开销", "Wallpaper 稳态不响应输入和滚动", ["L1", "L3", "L4"], ["all"]],
   ["PROMPT-CONTEXT-ANCHOR-001", "Prompt 与 Context 行为和位置一致", "控件随 composer 扩展而定位正确", ["L1", "L3", "L4"], ["all"]],
+  ["PROMPT-CONTEXT-SEND-RECOVERY-001", "Prompt 与 Context 行为和位置一致", "发送后原生输入框恢复时控件完整恢复", ["L3"], ["all"]],
   ["PROMPT-DEFAULT-THREAD-002", "Prompt 与 Context 行为和位置一致", "Prompt 默认值和当前 thread 保持明确", ["L1", "L3"], ["all"]],
   ["PROMPT-NEXT-BASE-003", "Prompt 与 Context 行为和位置一致", "Developer Prompt 的 Next Base 只消费一次", ["L1", "L3", "L4"], ["all"]],
   ["CONTEXT-COPY-SEMANTICS-001", "Prompt 与 Context 行为和位置一致", "Context 文案不继承 Prompt one-shot 语义", ["L1", "L3"], ["all"]],

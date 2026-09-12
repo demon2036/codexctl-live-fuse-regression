@@ -1,17 +1,12 @@
   const CONTROL_ANCHOR_ATTRIBUTE = "data-codexctl-control-anchor";
+  // The native context-usage circle is an image-role tooltip trigger.
   const CONTROL_NATIVE_SELECTOR = ["button", '[role="button"]', "input", "select", "textarea", "[tabindex]",
-    "[data-composer-navigation-target]",
+    "[data-composer-navigation-target]", '[role="img"]',
   ].join(",");
   const CONTROL_OWNER_SIGNAL_SELECTOR = [
     '[data-composer-footer-responsive]', '[data-codex-composer="true"]',
     '[data-composer-navigation-target="permissions"]', CONTROL_NATIVE_SELECTOR,
   ].join(",");
-  const CONTROL_PRESENTATIONS = Object.freeze([
-    { key: "direct-comfortable", presentation: "direct", density: "comfortable" },
-    { key: "direct-compact", presentation: "direct", density: "compact" },
-    { key: "overflow", presentation: "overflow", density: "tight" },
-    { key: "more-only", presentation: "more-only", density: "tight" },
-  ]);
   const controlRectSnapshot = (rect) => ({
     bottom: Number(rect?.bottom) || 0,
     height: Number(rect?.height) || 0,
@@ -64,10 +59,12 @@
     const rect = controlRectSnapshot(footer.getBoundingClientRect());
     const style = window.getComputedStyle(footer);
     return {
-      left: rect.left + cssPixel(style.borderLeftWidth) + cssPixel(style.paddingLeft),
-      top: rect.top + cssPixel(style.borderTopWidth) + cssPixel(style.paddingTop),
-      right: rect.right - cssPixel(style.borderRightWidth) - cssPixel(style.paddingRight),
-      bottom: rect.bottom - cssPixel(style.borderBottomWidth) - cssPixel(style.paddingBottom),
+      // Native action strips may live in reserved padding. The border bounds
+      // and protected native hit targets define usable space, not the content box.
+      left: rect.left + cssPixel(style.borderLeftWidth),
+      top: rect.top + cssPixel(style.borderTopWidth),
+      right: rect.right - cssPixel(style.borderRightWidth),
+      bottom: rect.bottom - cssPixel(style.borderBottomWidth),
     };
   };
   const nativeProtectedNodes = (context) => [...context.footer.querySelectorAll(
@@ -134,40 +131,6 @@
     const rect = node.getBoundingClientRect();
     return style.display !== "none" && rect.width > 0 && rect.height > 0;
   });
-  const measureControlPresentations = (host) => {
-    const saved = {
-      hidden: host.hidden,
-      presentation: host.getAttribute("data-cbps-presentation"),
-      density: host.getAttribute("data-cbps-density"),
-      left: host.style.left, top: host.style.top,
-      width: host.style.width, maxWidth: host.style.maxWidth,
-    };
-    host.hidden = false;
-    host.setAttribute("data-cbps-measuring", "true");
-    Object.assign(host.style, { left: "0px", top: "0px", width: "max-content", maxWidth: "none" });
-    const measured = CONTROL_PRESENTATIONS.map((definition, index) => {
-      setAttributeIfChanged(host, "data-cbps-presentation", definition.presentation);
-      setAttributeIfChanged(host, "data-cbps-density", definition.density);
-      const rect = controlRectSnapshot(host.getBoundingClientRect());
-      const controls = measurableControlNodes(host).map((node) => {
-        const current = controlRectSnapshot(node.getBoundingClientRect());
-        return {
-          left: current.left - rect.left, top: current.top - rect.top,
-          right: current.right - rect.left, bottom: current.bottom - rect.top,
-          width: current.width, height: current.height,
-        };
-      });
-      return { ...definition, index, width: rect.width, height: rect.height, controls };
-    });
-    restoreControlAttribute(host, "data-cbps-presentation", saved.presentation);
-    restoreControlAttribute(host, "data-cbps-density", saved.density);
-    host.removeAttribute("data-cbps-measuring");
-    Object.assign(host.style, {
-      left: saved.left, top: saved.top, width: saved.width, maxWidth: saved.maxWidth,
-    });
-    host.hidden = saved.hidden;
-    return measured;
-  };
   const candidatePlacement = (candidate, baseline) => {
     const left = baseline.permission.rect.right + baseline.gap;
     const top = baseline.permission.rect.top
@@ -217,8 +180,12 @@
   };
   const setControlCandidate = (host, candidate, baseline) => {
     const placement = candidatePlacement(candidate, baseline);
+    if (state.menu?.classList.contains("cbps-overflow-menu")
+      && (host.dataset.cbpsPresentation !== candidate.presentation
+        || (host.dataset.cbpsInline ?? "") !== (candidate.inline ?? ""))) closeMenu();
     setAttributeIfChanged(host, "data-cbps-presentation", candidate.presentation);
     setAttributeIfChanged(host, "data-cbps-density", candidate.density);
+    setAttributeIfChanged(host, "data-cbps-inline", candidate.inline ?? "");
     setAttributeIfChanged(host, "data-cbps-active-candidate", candidate.key);
     Object.assign(host.style, {
       left: `${placement.host.left}px`, top: `${placement.host.top}px`,
@@ -271,7 +238,6 @@
     if (state.menu) closeMenu();
     restoreControlAnchor();
     state.controlAnchor = context?.permissionButton ?? null;
-    state.controlAnchor?.removeAttribute(CONTROL_ANCHOR_ATTRIBUTE);
     state.controlComposer = context?.composer ?? null;
     state.controlFooter = context?.footer ?? null;
     state.controlOwnerSettling = context ? { key: null, frames: 0 } : null;
@@ -317,20 +283,22 @@
     return current;
   };
   function layoutControlHost(context, host) {
-    syncControlOwner(context);
-    syncControlOwnerObserver(context);
     if (!context) {
-      syncControlResizeObserver();
+      // A transient hide is not an owner change. Keep the existing local
+      // observations and restore immediately once its geometry is safe again.
       host.hidden = true;
+      clearControlPromotion();
       return null;
     }
+    syncControlOwner(context);
+    syncControlOwnerObserver(context);
     const baseline = nativeBaseline(context);
     syncControlResizeObserver(context, baseline.protected.map((entry) => entry.node));
     if (!settledControlOwner(baseline)) {
       host.hidden = true;
       return null;
     }
-    const candidates = measureControlPresentations(host);
+    const candidates = measureControlPresentations(host, baseline);
     // A route transition can briefly move native controls while React preserves
     // the same footer nodes and geometry. Keep failed candidates local to this
     // pass so a transient hit-test cannot permanently pin the footer to More.
@@ -368,6 +336,7 @@
     state.controlResizeObserver = null;
     state.controlOwnerObserver = null;
     state.controlOwnerObserverRoot = null;
+    state.controlOwnerObserverParent = null;
     state.controlResizeTargets = [];
     state.controlResizeWidths.clear();
     state.controlPositionQueued = false;
@@ -383,11 +352,15 @@
   const nativeFooterAction = (target) => Boolean(target && state.controlFooter?.contains?.(target)
     && !state.controlComposer?.contains?.(target)
     && target.closest?.(CONTROL_NATIVE_SELECTOR));
+  const controlOwnerMoved = () => state.controlHost?.hidden || !state.controlAnchorRect
+    || !sameControlRect(state.controlFooter?.getBoundingClientRect(), state.controlAnchorRect.footer)
+    || !sameControlRect(state.controlAnchor?.getBoundingClientRect(), state.controlAnchorRect.permission);
   const onDocumentPointerDown = (event) => {
     const sessionsSidebar = event.target?.closest?.("aside.app-shell-left-panel");
     if (sessionsSidebar) state.navigationHandler?.();
     else if (!state.controlHost?.contains?.(event.target)
-      && (!state.controlFooter?.contains?.(event.target) || nativeFooterAction(event.target))) {
+      && ((!state.controlFooter?.contains?.(event.target) && controlOwnerMoved())
+        || nativeFooterAction(event.target))) {
       scheduleControlPosition();
     }
     if (!state.menu || state.menu.contains(event.target)

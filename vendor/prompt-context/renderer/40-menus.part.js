@@ -53,15 +53,17 @@
 
   const positionMenu = () => {
     if (!state.menu || !state.menuButton) return;
+    const available = (element) => visuallyAvailable(element)
+      && rectInViewport(element.getBoundingClientRect());
     let anchorButton = state.menuButton;
-    if (!visuallyAvailable(anchorButton) && visuallyAvailable(state.menuFallbackButton)) {
+    if (!available(anchorButton) && available(state.menuFallbackButton)) {
       anchorButton = state.menuFallbackButton;
-    } else if (!visuallyAvailable(anchorButton)) {
+    } else if (!available(anchorButton)) {
       const fallback = state.controlHost?.querySelector(
         '[data-codex-control-overflow-trigger="true"]',
       );
       closeMenu();
-      if (visuallyAvailable(fallback)) {
+      if (available(fallback)) {
         try { fallback.focus({ preventScroll: true }); } catch { fallback.focus(); }
       }
       return;

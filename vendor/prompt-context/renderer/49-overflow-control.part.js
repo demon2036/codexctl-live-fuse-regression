@@ -45,17 +45,14 @@
     title.className = "cbps-menu-title";
     title.textContent = "Controls";
     menu.appendChild(title);
-    if (state.controlHost?.dataset.cbpsPresentation === "more-only"
-      && state.controlHost.querySelector('[data-codex-context-usage-trigger="true"]')) {
-      menu.appendChild(overflowMenuItem(
-        "context-usage", "Usage", "最近调用与累计缓存统计", button, openUsageMenu,
-      ));
-    }
+    const inline = new Set((state.controlHost?.dataset.cbpsInline ?? "").split(" "));
     const append = (selector, target, label, description, opener) => {
-      if (state.controlHost?.querySelector(selector)) menu.appendChild(overflowMenuItem(
+      if (!inline.has(target) && state.controlHost?.querySelector(selector)) menu.appendChild(overflowMenuItem(
         target, label, description, button, opener,
       ));
     };
+    append('[data-codex-context-usage-trigger="true"]',
+      "context-usage", "Usage", "最近调用与累计缓存统计", openUsageMenu);
     append('[data-codex-base-prompt-trigger="true"]',
       "base-prompt", "Base Prompt", "下一个新 task", openMenu);
     append('[data-codex-context-window-trigger="true"]',
@@ -88,4 +85,59 @@
       else openControlOverflowMenu(button);
     });
     return button;
+  };
+  const measureControlPresentations = (host, baseline) => {
+    const saved = {
+      hidden: host.hidden,
+      presentation: host.getAttribute("data-cbps-presentation"),
+      density: host.getAttribute("data-cbps-density"),
+      inline: host.getAttribute("data-cbps-inline"),
+      left: host.style.left, top: host.style.top,
+      width: host.style.width, maxWidth: host.style.maxWidth,
+    };
+    host.hidden = false;
+    host.setAttribute("data-cbps-measuring", "true");
+    Object.assign(host.style, { left: "0px", top: "0px", width: "max-content", maxWidth: "none" });
+    const measure = (definition) => {
+      setAttributeIfChanged(host, "data-cbps-presentation", definition.presentation);
+      setAttributeIfChanged(host, "data-cbps-density", definition.density);
+      setAttributeIfChanged(host, "data-cbps-inline", definition.inline ?? "");
+      const rect = controlRectSnapshot(host.getBoundingClientRect());
+      const controls = measurableControlNodes(host).map((node) => {
+        const current = controlRectSnapshot(node.getBoundingClientRect());
+        return {
+          left: current.left - rect.left, top: current.top - rect.top,
+          right: current.right - rect.left, bottom: current.bottom - rect.top,
+          width: current.width, height: current.height,
+        };
+      });
+      return { ...definition, width: rect.width, height: rect.height, controls };
+    };
+    const direct = ["comfortable", "compact", "tight"].map((density) => measure({
+      key: `direct-${density}`, presentation: "direct", density,
+    }));
+    const fallback = measure({ key: "more-only", presentation: "more-only", density: "tight" });
+    const overflow = [];
+    let inline = [];
+    // Reserve More first, then keep each control that fits. A long label must
+    // not prevent a shorter, lower-priority control from using the remaining gap.
+    for (const target of ["context-usage", "context-window", "base-prompt", "provider", "live-control"]) {
+      if (!host.querySelector(`[data-composer-navigation-target="${target}"]`)) continue;
+      const proposed = [...inline, target];
+      const candidate = measure({ key: `overflow-${proposed.join("-")}`,
+        presentation: "overflow", density: "tight", inline: proposed.join(" "),
+      });
+      if (!candidateFits(candidate, baseline)) continue;
+      inline = proposed;
+      overflow.unshift(candidate);
+    }
+    restoreControlAttribute(host, "data-cbps-presentation", saved.presentation);
+    restoreControlAttribute(host, "data-cbps-density", saved.density);
+    restoreControlAttribute(host, "data-cbps-inline", saved.inline);
+    host.removeAttribute("data-cbps-measuring");
+    Object.assign(host.style, {
+      left: saved.left, top: saved.top, width: saved.width, maxWidth: saved.maxWidth,
+    });
+    host.hidden = saved.hidden;
+    return [...direct, ...overflow, fallback].map((candidate, index) => ({ ...candidate, index }));
   };

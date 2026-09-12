@@ -110,7 +110,7 @@ test("rapid Sessions navigation coalesces repair work to three timers", async (t
   await harness.flush();
 
   const after = harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics();
-  assert.equal(after.uiMetrics.navigationRepairs, 100);
+  assert.equal(after.uiMetrics.navigationRepairs - before.uiMetrics.navigationRepairs, 100);
   assert.equal(after.uiMetrics.ensureSchedules, before.uiMetrics.ensureSchedules + 1);
   assert.equal(after.activeTimers.navigation, 3);
   assert.equal(harness.timers.size, 4, "one manager timer plus three coalesced repairs");
@@ -159,7 +159,8 @@ test("[INJECTION-LIFECYCLE-STARTUP-NAVIGATION-001] completed Session data repair
   harness.dispatchDocument("pointerdown", { target: sidebarTarget });
   await harness.flush();
   while (harness.runNextTimer()) await harness.flush();
-  assert.equal(harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().buttonCount, 0);
+  assert.equal(harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().buttonCount, 1);
+  assert.equal(harness.document.getElementById("codex-prompt-context-control-host").hidden, true);
 
   await requestClient.sendRequest("thread/read", { threadId: "11111111-2222-4333-8444-555555555555" });
   mountComposer();
@@ -233,16 +234,17 @@ test("turn completion repairs controls after the request repair window expires",
   while (harness.runNextTimer()) await harness.flush();
   assert.equal(
     harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().buttonCount,
-    0,
-    "the request repair window should be exhausted while the composer is absent",
+    1,
+    "the exhausted repair window must preserve the existing control",
   );
+  assert.equal(harness.document.getElementById("codex-prompt-context-control-host").hidden, true);
 
   mountComposer();
   await harness.flush();
   assert.equal(
     harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().buttonCount,
-    0,
-    "a late composer has no remaining request timer to repair it",
+    1,
+    "a late composer keeps the existing control until the completion repair",
   );
 
   manager.emitNotification({
@@ -308,9 +310,10 @@ test("final Codex app routes ready repairs controls replaced after the early sta
   await harness.flush();
   assert.equal(
     harness.window.__CODEX_BASE_PROMPT_SWITCHER__.diagnostics().buttonCount,
-    0,
-    "the final React routes should have replaced the composer after early repairs expired",
+    1,
+    "the final React routes must reuse the retained control after early repairs expire",
   );
+  assert.equal(harness.document.getElementById("codex-prompt-context-control-host").hidden, true);
 
   harness.dispatchWindow("codex-message-from-view", { detail: { type: "ready" } });
   await harness.flush();

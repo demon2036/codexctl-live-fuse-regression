@@ -136,11 +136,14 @@ test("fresh Context verification is isolated per thread", async (t) => {
   assert.equal(api.contextForThread(SECOND_THREAD_ID).id, "450k");
 });
 
-test("a smaller Context is rejected before thread read, unsubscribe, or resume", async (t) => {
-  const { api, calls } = await setup(t, 427500);
-  await assert.rejects(api.hotSwitchContext(THREAD_ID, OAI_CONTEXT), /272K.*450K|450K.*272K/);
-  assert.deepEqual(calls, [], "an ineligible shrink must not touch the current thread");
-  assert.equal(api.diagnostics().currentContext.id, "450k");
+test("a smaller legal Context resumes the current thread and marks compaction eligibility", async (t) => {
+  const { api, calls, conversation } = await setup(t, 427500);
+  setUsage(conversation, 260000, 427500);
+  await api.hotSwitchContext(THREAD_ID, OAI_CONTEXT);
+  assert.deepEqual(calls.map((call) => call.method), ["thread/read", "thread/unsubscribe", "thread/resume"]);
+  assert.equal(calls.at(-1).params.config.model_context_window, 272000);
+  assert.equal(api.diagnostics().currentContext.id, "oai");
+  assert.equal(api.diagnostics().currentContextSwitch.requiresCompaction, true);
 });
 
 test("Native with an equal known official capacity resumes the current task without overrides", async (t) => {

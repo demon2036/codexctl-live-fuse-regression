@@ -22,7 +22,8 @@ function run(mode, base) {
     cpu,
     mode,
     result: {
-      cleanup: { status: "pass" }, metrics: { observerCount: 0, timerCount: 0, workerCount: 0 },
+      cleanup: { status: "pass" },
+      metrics: { observerCount: 0, scopedObserverCount: 0, timerCount: 0, workerCount: 0 },
       processTree: { controllerCount: 0 }, status: "pass",
     },
   };

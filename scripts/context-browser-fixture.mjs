@@ -1,4 +1,5 @@
 import { contextBrowserBootstrap } from "./context-browser-bootstrap.mjs";
+import { exerciseControlRecovery } from "./control-recovery-fixture.mjs";
 
 export function contextBrowserFixture(payload) {
   const encodedPayload = Buffer.from(payload, "utf8").toString("base64");
@@ -10,6 +11,7 @@ footer { position: fixed; left: 80px; right: 80px; bottom: 30px; height: 48px; }
 [data-composer-navigation-target="permissions"] {
   position: absolute; left: 0; bottom: 9px; width: 100px; height: 30px;
 }
+
 </style></head><body>
 <footer data-composer-footer-responsive="true">
   <section data-codex-composer="true"></section>
@@ -215,6 +217,7 @@ ${contextBrowserBootstrap(encodedPayload)}
       viewport: { width: innerWidth, height: innerHeight },
       managerStatus: api.diagnostics().managerStatus,
       mutationObserverCount,
+      mutationScopes,
       resizeObserverCount,
       intervalCount,
       hotListenerCounts,
@@ -278,4 +281,103 @@ ${contextBrowserBootstrap(encodedPayload)}
   });
 })();
 </script></body></html>`;
+}
+
+export function responsiveControlBrowserFixture(payload) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+footer { position: fixed; left: 24px; bottom: 24px; width: 736px; box-sizing: border-box; padding: 8px; }
+[data-codex-composer] { min-height: 44px; }
+.row, .native { display: flex; align-items: center; }
+.row { gap: 5px; }
+button { box-sizing: border-box; height: 28px; flex: none; }
+#add, #mic, #send { width: 28px; }
+#permission { width: 82px; }
+.native { margin-left: auto; }
+#model { width: 153.65625px; }
+#send { margin-left: 8px; }
+</style></head><body><main data-app-shell-main-surface><footer data-composer-footer-responsive>
+<div data-codex-composer="true" contenteditable="true">Draft</div>
+<div class="row"><button id="add">+</button>
+<button id="permission" data-composer-navigation-target="permissions">Permissions</button>
+<div class="native"><button id="model">GPT-6 Astra</button><button id="mic">Mic</button><button id="send">Send</button></div>
+</div></footer></main><pre id="result"></pre><script>(() => {
+${contextBrowserBootstrap(Buffer.from(payload).toString("base64"))}
+(async () => {
+  const api = await waitFor(() => {
+    const value = window.__CODEX_BASE_PROMPT_SWITCHER__;
+    return value?.diagnostics().managerStatus === "ready" ? value : null;
+  }, "responsive controls");
+  recordNative(api, THREAD_A);
+  api.setLiveStatus({ schema: "codexctl-live-ui-status/1", connected: true,
+    sessionId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", masterEnabled: true,
+    plugins: ["prompt", "context", "provider", "wallpaper"].map((id) => ({ id, enabled: true })),
+  });
+  const footer = document.querySelector("footer");
+  const host = document.querySelector(".cbps-control-host");
+  const snapshot = async (width, resize = true) => {
+    footer.style.width = width + "px";
+    // Exercise the resize burst without depending on dump-dom's virtual RAF clock.
+    for (let event = 0; event < 4; event += 1) {
+      if (resize) window.dispatchEvent(new Event("resize"));
+      await new Promise((resolve) => setTimeout(resolve, 32));
+    }
+    const visible = [...host.children].filter((node) => node.getBoundingClientRect().width > 0);
+    const native = [...footer.querySelectorAll('button, [role="img"]')]
+      .map((node) => node.getBoundingClientRect());
+    return { width, candidate: host.dataset.cbpsActiveCandidate,
+      controls: visible.map((node) => node.dataset.composerNavigationTarget),
+      overlap: visible.some((node) => {
+        const rect = node.getBoundingClientRect();
+        return native.some((other) => rect.left < other.right && rect.right > other.left
+          && rect.top < other.bottom && rect.bottom > other.top);
+      }),
+    };
+  };
+  const full = await snapshot(736);
+  const circle = document.createElement("span");
+  circle.setAttribute("role", "img");
+  circle.setAttribute("aria-label", "Context used: 64%");
+  circle.style.cssText = "display:inline-flex;width:16px;height:16px;margin-right:4px;flex:none";
+  circle.innerHTML = '<svg aria-hidden="true" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor"/></svg>';
+  document.querySelector(".native").prepend(circle);
+  const withContextCircle = await snapshot(736, false);
+  const circleRect = circle.getBoundingClientRect();
+  const circleReachable = circle.contains(document.elementFromPoint(
+    circleRect.left + circleRect.width / 2, circleRect.top + circleRect.height / 2,
+  ));
+  host.querySelector('[data-codex-control-overflow-trigger="true"]').click();
+  const partialTargets = [...document.querySelectorAll("[data-codex-overflow-target]")]
+    .map((node) => node.dataset.codexOverflowTarget);
+  await snapshot(450);
+  const staleMenuClosed = !document.querySelector(".cbps-overflow-menu");
+  const progressive = [];
+  for (const width of [700, 660, 620, 580, 540, 500, 450, 500, 540, 580, 620, 660, 700, 736]) {
+    progressive.push(await snapshot(width));
+  }
+  const narrow = await snapshot(450);
+  host.querySelector('[data-codex-control-overflow-trigger="true"]').click();
+  const targets = [...document.querySelectorAll("[data-codex-overflow-target]")]
+    .map((node) => node.dataset.codexOverflowTarget);
+  document.querySelector('[data-codex-overflow-target="context-window"]')?.click();
+  const menuReachable = Boolean(document.querySelector(".cbps-context-menu"));
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  circle.remove();
+  const restored = await snapshot(736);
+  // Older shells reserve the native action strip using footer padding.
+  const nativeStrip = footer.querySelector(".native");
+  nativeStrip.style.cssText = "position:absolute;right:8px;bottom:8px";
+  footer.style.paddingRight = "600px";
+  const reservedPadding = await snapshot(736);
+  footer.style.paddingRight = "";
+  nativeStrip.style.cssText = "";
+  await snapshot(736);
+  const recovery = await (${exerciseControlRecovery.toString()})({
+    host, footer, requestClient, threadId: THREAD_A,
+  });
+  return { full, withContextCircle, circleReachable, partialTargets, staleMenuClosed, progressive,
+    narrow, targets, menuReachable, restored, reservedPadding, recovery };
+})().then((result) => document.getElementById("result").textContent = JSON.stringify(result))
+.catch((error) => document.getElementById("result").textContent = JSON.stringify({ error: error.message }));
+})();</script></body></html>`;
 }
