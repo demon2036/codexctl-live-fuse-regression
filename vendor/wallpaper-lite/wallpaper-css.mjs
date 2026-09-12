@@ -1,5 +1,8 @@
 // Semantic shell marker survives tag/class changes; keep legacy hosts as fallbacks.
 const SIDEBAR = ':is([data-app-shell-left-panel-appearance], .app-shell-left-panel, [data-testid="app-shell-floating-left-panel"])';
+// Layout markers also occur on the body, footer and input. Only the native
+// surface owns paint and rounded corners; home places that surface on its body.
+const COMPOSER = ':is(.composer-surface-chrome, [data-composer-surface-variant]:not([data-composer-utility-bar-variant="home"]), [data-composer-utility-bar-variant="home"] > [data-composer-layout])';
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -22,10 +25,7 @@ export function optimizeWallpaperCss(value) {
   css = css
     .replaceAll('[data-ds-part="root"]', 'html[data-codexctl-wallpaper="active"]')
     .replaceAll('[data-ds-part="sidebar"]', SIDEBAR)
-    .replaceAll(
-      '[data-ds-part="composer"]',
-      '.composer-surface-chrome, [data-composer-layout], [data-codex-composer-root]',
-    )
+    .replaceAll('[data-ds-part="composer"]', COMPOSER)
     .replace(/backdrop-filter\s*:\s*(?!none\b)[^;}]+/gi, "backdrop-filter: none")
     .replace(/(^|[;{]\s*)filter\s*:\s*(?!none\b)[^;}]+/gim, "$1filter: none")
     .replace(/background-attachment\s*:\s*fixed\b/gi, "background-attachment: scroll");
@@ -205,11 +205,7 @@ html[data-codexctl-wallpaper="active"] :is(
 html[data-codexctl-wallpaper="active"] [data-app-shell-main-content-top-fade] {
   background-image: linear-gradient(to bottom, ${paint.middle}, transparent) !important;
 }
-html[data-codexctl-wallpaper="active"] :is(
-  .composer-surface-chrome,
-  [data-composer-layout],
-  [data-codex-composer-root]
-) {
+html[data-codexctl-wallpaper="active"] ${COMPOSER} {
   background-color: ${paint.composer} !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;

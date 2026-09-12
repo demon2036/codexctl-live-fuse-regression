@@ -104,6 +104,15 @@ function assertWallpaper(result, expectedWidth) {
     assert.equal(state.sidebarContain, "none");
     assert.equal(state.sidebarWillChange, "auto");
     assert.equal(state.composerContain, "none");
+    for (const [id, layer] of Object.entries(state.composerLayers)) {
+      if (["composer", "home-body", "legacy-composer"].includes(id)) {
+        assert.match(layer.background, /rgba\(11, 36, 42, 0\.76\)/, `${id} surface paint`);
+        assert.equal(layer.radius, "25px", `${id} must retain native rounded corners`);
+      } else assertTransparent(layer.background, `${state.label} ${id} must not stack paint`);
+      assert.equal(layer.contain, "none", `${id} must not clip native content`);
+    }
+    assert.equal(state.composerLayers["composer-input"].overflow, "auto");
+    assert.equal(state.composerLayers["home-input"].overflow, "auto");
     assert.match(state.sidebarBackground, /rgba\(7, 25, 29, 0\.18\)/);
   }
   assert.ok(result.states.find(({ label }) => label === "long").documentHeight

@@ -141,20 +141,21 @@ test("wallpaper paints the composer without clipping or restacking native popove
   const loaded = await loadPayload(themeDir, { artUrl: "blob:codexctl-test" });
   const css = buildWallpaperCss(loaded.source);
   const composerRule = css.match(
-    /:is\(\s*\.composer-surface-chrome,\s*\[data-composer-layout\],\s*\[data-codex-composer-root\]\s*\)\s*\{([^}]+)\}/,
+    /:is\(\.composer-surface-chrome,[^\n]+\)\s*\{([^}]+)\}/,
   );
   assert.ok(composerRule, "composer theme rule must be present");
   assert.match(composerRule[1], /background-color:\s*rgba\(11, 36, 42, 0\.760\)\s*!important/);
-  assert.doesNotMatch(composerRule[1], /\bcontain\s*:|\bisolation\s*:|\bz-index\s*:|\btransform\s*:/);
-  assert.doesNotMatch(css,
-    /:is\(\s*\.composer-surface-chrome,\s*\[data-composer-layout\],\s*\[data-codex-composer-root\]\s*\)::before/);
+  assert.doesNotMatch(composerRule[1],
+    /\b(?:contain|isolation|z-index|transform|overflow|border-radius)\s*:/);
+  assert.match(css, /\[data-composer-utility-bar-variant="home"\] > \[data-composer-layout\]/);
 });
 
 test("[PLATFORM-LINUX-RENDERER-SURFACE-005] themes the latest Codex composer root", async () => {
   const loaded = await loadPayload(themeDir, { artUrl: "blob:codexctl-test" });
   const css = buildWallpaperCss(loaded.source);
 
-  assert.match(css, /:is\([^)]*\[data-codex-composer-root\][^)]*\)\s*\{/);
+  assert.match(css, /\[data-codex-composer-root\]\s*\)\s*\{\s*--color-text:/);
+  assert.match(css, /\[data-codex-composer-root\]\s*\{\s*--color-background-composer-action-bar:/);
   assert.doesNotMatch(css, /:is\([^)]*\[data-codex-composer-root\][^)]*\)::before\s*\{/);
 });
 

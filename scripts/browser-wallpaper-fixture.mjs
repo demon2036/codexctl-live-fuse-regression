@@ -50,6 +50,13 @@ html, body { margin: 0; }
 #messages { flex: 1 1 auto; min-height: 20px; background: rgb(17,17,17); }
 #bottom, #bottom-surface { min-height: 24px; background: rgb(17,17,17); }
 #composer { min-height: 42px; background: rgb(17,17,17); }
+#composer, #home-body, #legacy-composer { border-radius: 25px; }
+#composer-owner, #home-composer { margin: 12px; }
+#composer-body, #home-body { position: relative; }
+#composer-input, #home-input { min-height: 44px; overflow-y: auto; }
+#composer-footer, #home-footer { min-height: 28px; }
+#home-body, #legacy-composer { background: rgb(17,17,17); }
+#home-utility { height: 32px; }
 #permission { position: absolute; left: 180px; top: 120px; width: 90px; height: 32px; }
 #control-host { width: 160px; height: 28px; left: 1px; top: 2px; }
 #floating-sidebar, #floating-inner { background: rgb(17,17,17); }
@@ -70,7 +77,20 @@ ${controlCss}
 </div>
 <div id="bottom" data-app-shell-focus-area="bottom-panel">
 <div id="bottom-surface" class="bg-surface">
-<div id="composer" class="composer-surface-chrome" data-composer-layout contenteditable="true"></div>
+<div id="composer-owner" data-codex-composer-root>
+<div id="composer" data-composer-layout="multiline" data-composer-surface-variant="default" data-composer-utility-bar-variant="default">
+<div id="composer-body" data-composer-layout="multiline">
+<div id="composer-footer" data-composer-layout="multiline" data-composer-footer-responsive>
+<div id="composer-input" data-composer-layout="multiline"><div contenteditable="true">Draft</div></div>
+</div></div></div></div>
+<div id="home-composer" data-codex-composer-root>
+<div id="home-surface" data-composer-layout="multiline" data-composer-surface-variant="default" data-composer-utility-bar-variant="home">
+<div id="home-utility">Project · Branch</div>
+<div id="home-body" data-composer-layout="multiline">
+<div id="home-footer" data-composer-layout="multiline" data-composer-footer-responsive>
+<div id="home-input" data-composer-layout="multiline"><div contenteditable="true">Draft with attachment</div></div>
+</div></div></div></div>
+<div id="legacy-composer" class="composer-surface-chrome" data-composer-layout></div>
 </div></div></main></section></div>
 <aside id="floating-sidebar" data-testid="app-shell-floating-left-panel">
 <div id="floating-inner"></div></aside>
@@ -127,6 +147,14 @@ ${controlCss}
     threadFadeImage: style("thread-bottom-fade").backgroundImage,
     threadContain: style("messages").contain,
     composerContain: style("composer").contain,
+    composerLayers: Object.fromEntries([
+      "composer-owner", "composer", "composer-body", "composer-footer", "composer-input",
+      "home-composer", "home-surface", "home-utility", "home-body", "home-footer", "home-input",
+      "legacy-composer",
+    ].map((id) => [id, {
+      background: style(id).backgroundColor, radius: style(id).borderRadius,
+      overflow: style(id).overflow, contain: style(id).contain,
+    }])),
   });
   const short = surfaceState("short");
   node("messages").style.minHeight = "1400px";
