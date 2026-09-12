@@ -84,6 +84,8 @@ const PROBE = `(() => {
   const nodeKind = (node) => node ? {
     tag: node.tagName, role: node.getAttribute("role"),
     modal: node.getAttribute("aria-modal"),
+    className: typeof node.className === "string" ? node.className.slice(0, 300) : null,
+    position: getComputedStyle(node).position, zIndex: getComputedStyle(node).zIndex,
     target: node.getAttribute("data-composer-navigation-target"),
     composer: node.hasAttribute("data-codex-composer"),
     footer: node.hasAttribute("data-composer-footer-responsive"),
@@ -153,6 +155,9 @@ const PROBE = `(() => {
       wallpaperRevision: wallpaper?.revision || null,
     },
     ownerEvidence,
+    knownActions: ["Continue", "Next", "Done", "Skip", "Not now", "Got it", "Close", "Get started"]
+      .filter((label) => [...document.querySelectorAll('button, [role="button"]')]
+        .some((node) => visible(node) && node.textContent.trim() === label)),
     sidebarScroll: { bounds: bounds(scroll), candidateCount: scrollables.length,
       clientHeight: scroll?.clientHeight ?? null, found: Boolean(scroll),
       overflowing: Boolean(scroll && scroll.scrollHeight > scroll.clientHeight + 1),
