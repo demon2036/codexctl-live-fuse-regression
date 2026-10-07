@@ -12,6 +12,7 @@
     "check": "node ./scripts/check.mjs",
     "test": "node --test",
     "test:app": "node ./scripts/app-regression.mjs",
+    "test:live": "node ./scripts/live-reload-regression.mjs",
     "test:browser": "node ./scripts/browser-regression.mjs",
     "test:fast": "node ./scripts/fast-regression.mjs",
     "test:performance": "node ./scripts/performance-regression.mjs",

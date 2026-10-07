@@ -42,8 +42,13 @@ export class LiveSlotManager {
         ? artifact(definition.stableArtifact, `${id} stable artifact`) : null;
       const stableEnabled = Boolean(definition.stableEnabled && stableArtifact);
       this.#slots.set(id, {
-        actual: null,
-        debug: null,
+        actual: definition.actual ? target(definition.actual.kind,
+          artifact(definition.actual.artifact, `${id} previous artifact`)) : null,
+        debug: definition.debug ? {
+          ...definition.debug,
+          artifact: artifact(definition.debug.artifact, `${id} debug artifact`),
+          recovery: stableEnabled && this.#masterEnabled ? target("stable", stableArtifact) : null,
+        } : null,
         error: null,
         id,
         order: Number.isSafeInteger(definition.order) ? definition.order : 0,
@@ -99,6 +104,23 @@ export class LiveSlotManager {
     };
   }
 
+  checkpoint() {
+    return {
+      masterEnabled: this.#masterEnabled,
+      slots: Object.fromEntries([...this.#slots].map(([id, slot]) => [id, {
+        actual: slot.actual, stable: slot.stable,
+      }])),
+    };
+  }
+
+  reconcile() {
+    return this.#queue(async () => {
+      for (const slot of this.#ordered([...this.#slots.keys()])) {
+        await this.#restore(slot, slot.actual);
+      }
+    });
+  }
+
   async #diagnostics(slot) {
     return this.#adapter.diagnostics(slot.id);
   }
@@ -131,9 +153,9 @@ export class LiveSlotManager {
     if (before) await this.#ensureMounted(slot, before);
   }
 
-  async #switch(kind, targets) {
+  async #switch(kind, targets, force = false) {
     const ids = Object.keys(targets);
-    const changed = this.#ordered(ids).filter((slot) => !sameTarget(slot.actual, targets[slot.id]));
+    const changed = this.#ordered(ids).filter((slot) => force || !sameTarget(slot.actual, targets[slot.id]));
     if (changed.length === 0) return null;
     const before = Object.fromEntries(changed.map((slot) => [slot.id, slot.actual]));
     const after = Object.fromEntries(changed.map((slot) => [slot.id, targets[slot.id]]));
@@ -195,9 +217,10 @@ export class LiveSlotManager {
   initialize() {
     return this.#queue(async () => {
       const targets = Object.fromEntries([...this.#slots].map(([id, slot]) => [
-        id, this.#effectiveStable(slot),
+        id, this.#masterEnabled && slot.debug
+          ? target("debug", slot.debug.artifact) : this.#effectiveStable(slot),
       ]));
-      return this.#switch("initialize", targets);
+      return this.#switch("initialize", targets, true);
     });
   }
 

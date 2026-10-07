@@ -40,4 +40,11 @@ export const appConfigLaunchCases = Object.freeze([
     ["L1", "L4"],
     ["macos"],
   ]),
+  defineSupplemental(CAPABILITY, [
+    "LIVE-RELOAD-ALL-CODE-001",
+    "Live 更新完整辅助进程代码并保留 App 与失败回退",
+    null,
+    ["L1", "L2"],
+    ["all"],
+  ]),
 ]);

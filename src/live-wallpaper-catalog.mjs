@@ -8,6 +8,7 @@ import { parseTheme } from "../vendor/wallpaper-lite/theme-loader.mjs";
 import { readLiveImageMetadata } from "./live-image-metadata.mjs";
 import { assertLivePrivateFile, ensureLivePrivateDirectory } from "./live-private-files.mjs";
 import { writeTextAtomic } from "./util.mjs";
+import { liveCodeRevision } from "./live-code.mjs";
 
 const THEME_ID = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const IMAGE = /\.(?:png|jpe?g|webp)$/i;
@@ -238,7 +239,8 @@ async function publish(paths, catalog) {
 }
 
 export async function compileLiveWallpaperCatalog(paths) {
-  const inventoryFingerprint = await inventory(paths);
+  const inventoryFingerprint = createHash("sha256")
+    .update(await inventory(paths)).update(await liveCodeRevision(paths)).digest("hex");
   const current = await readCurrent(paths, inventoryFingerprint);
   if (current) return current;
   const shared = {

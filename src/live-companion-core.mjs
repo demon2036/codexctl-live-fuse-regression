@@ -27,6 +27,7 @@ export async function startLiveCompanionCore({
   hostRevision,
   manager,
   onShutdown = null,
+  afterResponse = null,
   paths,
   sessionId,
   socketPath,
@@ -40,6 +41,8 @@ export async function startLiveCompanionCore({
   let closePromise = null;
   let server;
   let session;
+  let sessionRecord;
+  let available = true;
   const close = () => {
     if (closePromise) return closePromise;
     closePromise = (async () => {
@@ -80,8 +83,8 @@ export async function startLiveCompanionCore({
     return handler(request.params, { catalog, manager, status });
   };
   try {
-    server = await startLiveServer({ authToken, dispatch, sessionId, socketPath });
-    session = await writeLiveSession(paths, {
+    server = await startLiveServer({ authToken, dispatch, sessionId, socketPath, afterResponse });
+    sessionRecord = {
       app: {
         command: app.command,
         executable: app.executable,
@@ -97,10 +100,21 @@ export async function startLiveCompanionCore({
       sessionId,
       socketPath,
       uid: typeof process.getuid === "function" ? process.getuid() : 0,
-    });
+    };
+    session = await writeLiveSession(paths, sessionRecord);
   } catch (error) {
     await server?.close().catch(() => {});
     throw error;
   }
-  return { catalog, close, server, session, status };
+  return {
+    catalog, close, server, session, status,
+    async setAvailable(next) {
+      if (available === next) return;
+      if (next) session = await writeLiveSession(paths, sessionRecord);
+      else await removeLiveSession(paths, sessionId, {
+        authToken, companionPid: companion.pid,
+      });
+      available = next;
+    },
+  };
 }

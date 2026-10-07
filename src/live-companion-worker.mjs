@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { readLiveBootstrap } from "./live-bootstrap.mjs";
-import { pairLiveCompanion, prepareLiveCompanion } from "./live-companion.mjs";
+import { pairLiveCompanion } from "./live-companion.mjs";
+import { prepareLiveCompanion } from "./live-prepare.mjs";
+import { liveCodeRevision } from "./live-code.mjs";
 import { loadConfig } from "./config.mjs";
 import { resolvePaths } from "./paths.mjs";
 
@@ -38,13 +40,28 @@ async function main() {
   });
   const bootstrapFile = process.env.CODEXCTL_LIVE_BOOTSTRAP;
   delete process.env.CODEXCTL_LIVE_BOOTSTRAP;
+  const preparation = new Promise((resolve) => {
+    const receive = (value) => {
+      if (value?.schema !== "codexctl-live-worker-prepare/1") return;
+      process.removeListener("message", receive);
+      resolve(value.checkpoint);
+    };
+    process.on("message", receive);
+  });
+  report({ phase: "booted" });
+  const checkpoint = await preparation;
   const bootstrap = await readLiveBootstrap(bootstrapFile);
   const paths = resolvePaths({ ...process.env, CODEXCTL_HOME: bootstrap.controllerHome });
+  bootstrap.hostRevision = await liveCodeRevision(paths);
   const config = await loadConfig(paths);
-  const prepared = await prepareLiveCompanion(paths, config, bootstrap);
+  const prepared = await prepareLiveCompanion(paths, config, bootstrap, checkpoint);
+  if (await liveCodeRevision(paths) !== bootstrap.hostRevision) {
+    throw new Error("live code changed during preparation; previous companion remains active");
+  }
   const launched = waitForLaunch(bootstrap);
   report({
     catalogRevision: prepared.catalog.revision,
+    hostRevision: bootstrap.hostRevision,
     phase: "ready",
     sessionId: bootstrap.sessionId,
   });
@@ -58,6 +75,7 @@ async function main() {
   report({
     appPid: live.app.pid,
     companionPid: process.pid,
+    hostRevision: bootstrap.hostRevision,
     phase: "paired",
     sessionId: bootstrap.sessionId,
   });

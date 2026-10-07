@@ -50,7 +50,7 @@ relay 在同一次启动中混用。
 
 稳态没有 watcher、supervisor、轮询或注入 worker。Wallpaper renderer 不创建 `MutationObserver` 和 timer；Prompt/Context 不观察整棵文档树，打字和流式输出不会触发 DOM reconciliation。
 
-配置命令不会热修改当前窗口。修改后显式运行 `codexctl app --inject` 才会跨完整 App 进程边界重启并一次性注入。需要 Remote 或恢复官方性能时运行 `codexctl app`；已注入 renderer 不会被热撤销后继续复用。这样做是因为热清理无法证明 Chromium 的 JS heap、样式/合成缓存、client patch 和框架状态已恢复；“删除 DOM 后仍卡，完整关闭重开才恢复”属于明确的恢复边界。
+普通配置命令只落盘。一次性模式通过 `codexctl app --inject` 完整启动后生效；已建立的 Live 会话通过 `codexctl live reload` 更新辅助进程和插件，保持 App PID 与页面不变。需要 Remote 或恢复官方性能时运行 `codexctl app`；已注入 renderer 不会被热撤销后继续复用。这样做是因为热清理无法证明 Chromium 的 JS heap、样式/合成缓存、client patch 和框架状态已恢复；“删除 DOM 后仍卡，完整关闭重开才恢复”属于明确的恢复边界。
 
 ## 安装
 
@@ -90,6 +90,25 @@ codexctl live start
 ```
 
 先正常退出现有 App，再运行最后一条命令。Live 模式使用动态 loopback CDP，保留一个管理本次会话的 companion，不依赖容易被新版 Electron 禁用的 `NODE_OPTIONS`。它不会接管或关闭未知 App，也不会创建自动启动项。Linux 还支持下面的一次性 `app --inject` 入口；macOS preload 入口受 App fuse 限制，见 [已知兼容性问题](docs/KNOWN_ISSUE_CODEX_26.901_NODE_OPTIONS.md)。
+
+## Live 开发与更新
+
+已经处于 Live 模式时：
+
+```bash
+codexctl live reload
+codexctl live reload wallpaper
+codexctl live dev wallpaper --source ./assets/wallpapers/yuugohan-tsuri --watch
+codexctl live dev stop wallpaper
+```
+
+`reload` 默认更新全部插件；也接受原来的 `--all`。每次更新和开始调试都使用新辅助进程，
+重新加载 ESM、CommonJS 及其依赖。新版本准备好后接管同一个 App，旧进程随后退出。
+语法错误或挂载失败会保留、恢复旧版本。插件开关、调试源和调试前的恢复版本会被保留。
+
+`--watch` 监听项目运行代码和指定调试资源。修复代码错误后可继续自动更新；普通运行没有文件监听。
+这覆盖壁纸生成器、renderer 和辅助程序代码。Codex 本体、App 启动参数、代理和启动期注入仍需
+下次启动才能改变；未建立 Live 通道的普通 App 不会被接管。详见 [Live 更新边界与验证](docs/LIVE_RELOAD.md)。
 
 ## 项目启动策略
 

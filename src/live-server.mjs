@@ -56,7 +56,7 @@ async function reclaimStaleSocket(filename) {
   if (await ownedSocket(filename, identity)) await fs.unlink(filename);
 }
 
-export async function startLiveServer({ authToken, dispatch, sessionId, socketPath }) {
+export async function startLiveServer({ authToken, dispatch, sessionId, socketPath, afterResponse }) {
   if (!path.isAbsolute(socketPath) || Buffer.byteLength(socketPath) > 96
     || typeof dispatch !== "function") {
     throw new TypeError("live server requires an absolute socket and dispatcher");
@@ -67,8 +67,9 @@ export async function startLiveServer({ authToken, dispatch, sessionId, socketPa
   const server = net.createServer((client) => {
     clients.add(client);
     client.once("close", () => clients.delete(client));
-    const send = (value) => {
-      if (!client.destroyed) client.write(encodeLiveFrame(value));
+    const send = (value, replied) => {
+      if (!client.destroyed) client.write(encodeLiveFrame(value), replied);
+      else replied?.();
     };
     const decoder = createLiveFrameDecoder((raw) => {
       let request;
@@ -87,7 +88,9 @@ export async function startLiveServer({ authToken, dispatch, sessionId, socketPa
         return;
       }
       Promise.resolve(dispatch(request)).then(
-        (result) => send(createLiveResponse(request.requestId, { result })),
+        (result) => send(createLiveResponse(request.requestId, { result }), () => {
+          void afterResponse?.(request, result);
+        }),
         (error) => send(createLiveResponse(request.requestId, { error })),
       );
     });

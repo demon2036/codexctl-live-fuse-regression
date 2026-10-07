@@ -51,6 +51,17 @@ npm run test:fast
 
 控件允许按宽度折叠。L4 必须实际打开 More，确认被折叠项目可见可点；不能把隐藏按钮的零宽度误判为功能缺失。L4 同时记录活动 observer 总数与通过 DOM 目标核验的局部数量：二者必须相等且至多为 2，官方/仅壁纸模式必须为 0。输入与流式输出的扫描、UI 重建和额外 timer 仍为零，CPU/延迟预算不放宽。
 
+## Live 更新回归
+
+```bash
+npm run test:live
+```
+
+使用临时项目副本、独立 profile 和真实 Electron 窗口验证 `LIVE-RELOAD-ALL-CODE-001`。
+断言 ESM/CJS 修改生效、App PID/页面/未发送文字保持、插件开关与调试恢复版本保留。
+故意制造语法错误、renderer 挂载错误和 watch 错误，检查旧版本恢复、后续修改继续生效，
+并在关闭时检查已登记进程全部退出。这是本地独立窗口验证；它不代表用户主窗口或 L5 官方 App 已验证。
+
 ## Ownership Envelope
 
 所有浏览器与 App runner 在启动前创建唯一 run ID、临时 root/profile/runtime、动态 loopback port 和进程登记簿。任何关闭或清理动作都要再次匹配 PID、start time、command、profile 和 parent chain。

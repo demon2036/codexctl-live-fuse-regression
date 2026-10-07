@@ -51,7 +51,7 @@ codexctl live start
 
 若新版增强功能不兼容，先正常退出 App，可直接打开官方 App 继续工作。需要回退本工具时，使用 `git switch --detach <之前记录的提交或发布标签>` 后重新运行安装器和 doctor，再启动 Live。配置状态位于仓库之外；不要复制其他机器的运行状态、socket、PID 记录或登录凭据。
 
-`git pull` 本身不热更新正在运行的插件。日常更新通过完整退出后重开生效；开发会话中显式授权的 Live reload 另行验证。
+`git pull` 本身不热更新正在运行的插件。具有运行时更新能力的 Live 会话可通过 `codexctl live reload` 换入新的辅助程序和插件，不重启 App。启动参数、官方 App 或首次建立 Live 通道仍遵循启动流程。旧辅助进程不会仅因源码落盘而自动获得新能力；边界和验证见 [Live 更新说明](LIVE_RELOAD.md)。
 
 ## 发布验收
 

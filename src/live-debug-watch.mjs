@@ -1,68 +1,76 @@
 import fs from "node:fs";
 
 export class LiveDebugWatcher {
-  #apply;
-  #armed = false;
-  #build;
   #closed = false;
   #dirty = false;
   #error;
-  #running = null;
-  #sequence;
+  #paused = false;
+  #reload;
+  #running = false;
   #timer = null;
-  #watcher;
+  #watchers = [];
 
-  constructor({ apply, build, error, sequence = 1, source }) {
-    if (typeof apply !== "function" || typeof build !== "function"
-      || typeof error !== "function") throw new TypeError("debug watcher callbacks are required");
-    this.#apply = apply;
-    this.#build = build;
+  constructor({ sources, reload, error }) {
+    if (typeof reload !== "function" || typeof error !== "function") {
+      throw new TypeError("debug watcher callbacks are required");
+    }
+    this.#reload = reload;
     this.#error = error;
-    this.#sequence = sequence;
-    this.#watcher = fs.watch(source, { recursive: true }, () => this.#markDirty());
-    this.#watcher.on("error", (watchError) => { void this.#error(watchError); });
+    try {
+      for (const { directory, accept = () => true } of sources) {
+        const watcher = fs.watch(directory, { recursive: true }, (_event, filename) => {
+          if (accept(filename)) this.#markDirty();
+        });
+        this.#watchers.push(watcher);
+        watcher.on("error", (watchError) => { void error(watchError); });
+      }
+    } catch (error) {
+      this.close();
+      throw error;
+    }
   }
 
   #markDirty() {
     if (this.#closed) return;
     this.#dirty = true;
-    if (!this.#armed || this.#running) return;
+    if (this.#running || this.#paused) return;
     clearTimeout(this.#timer);
     this.#timer = setTimeout(() => { void this.#flush(); }, 120);
   }
 
-  #flush() {
+  async #flush() {
     clearTimeout(this.#timer);
     this.#timer = null;
-    if (this.#closed || !this.#armed || this.#running || !this.#dirty) return this.#running;
-    this.#running = (async () => {
-      while (this.#dirty && !this.#closed && this.#armed) {
+    if (this.#closed || this.#paused || this.#running || !this.#dirty) return;
+    this.#running = true;
+    try {
+      while (this.#dirty && !this.#closed && !this.#paused) {
         this.#dirty = false;
-        const sequence = ++this.#sequence;
-        try {
-          const artifact = await this.#build();
-          if (!this.#closed && this.#armed) await this.#apply(artifact, sequence);
-        } catch (buildError) {
-          if (!this.#closed) await this.#error(buildError);
-        }
+        try { await this.#reload(); }
+        catch (error) { if (!this.#closed) await this.#error(error); }
       }
-    })().finally(() => { this.#running = null; });
-    return this.#running;
+    } finally { this.#running = false; }
+  }
+
+  get dirty() { return this.#dirty; }
+
+  pause() {
+    this.#paused = true;
+    this.#dirty = false;
+    clearTimeout(this.#timer);
+    this.#timer = null;
   }
 
   arm() {
-    if (this.#closed) throw new Error("debug watcher is closed");
-    this.#armed = true;
+    this.#paused = false;
     if (this.#dirty) this.#markDirty();
   }
 
-  async close() {
-    if (this.#closed) return;
+  close() {
     this.#closed = true;
-    this.#armed = false;
     clearTimeout(this.#timer);
     this.#timer = null;
-    this.#watcher.close();
-    await this.#running;
+    for (const watcher of this.#watchers.splice(0)) watcher.close();
+    // Reload closes its own watcher during handoff; waiting here would deadlock.
   }
 }

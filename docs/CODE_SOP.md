@@ -61,7 +61,7 @@ Developer Prompt 的 `Next Base` 是版本化 one-shot。新 task 请求必须�
 - 主题中的 `sidebarOpacity`、`composerOpacity`、overlay 和焦点位置必须原值生效；禁止为了“稳妥”私自抬高透明度下限。
 - 新版 App 增加或替换 surface token 时，必须扩展静态结构选择器并新增回归测试，不能靠 observer 或轮询补洞。
 - 性能重构必须与视觉重构分开提交、分开验收；未经真实界面 A/B，不得以 payload 更小或 CPU 更低宣称完成。
-- 活跃主窗口不做热注入验证。所有源码变更仅在用户下一次主动完整启动时生效。
+- 自动回归使用隔离窗口，不在活跃主窗口做热注入验证。一次性模式在下次完整启动时生效；用户显式授权的 Live reload 可在同一 App PID 生效，必须验证候选构建、状态交接和失败回退。
 
 ## 5. 变更流程
 
@@ -126,10 +126,10 @@ L1/L2 不能替代真实 Chromium，L3 不能替代隔离 App，L4 不能替代 
 
 - [ ] 每个文本文件不超过 400 行；
 - [ ] 文件名和职责一致，没有循环依赖；
-- [ ] 无新增 watcher、supervisor、轮询或全树 observer；
+- [ ] 一次性模式无常驻 watcher；Live 仅在显式调试时监听文件，无新增 supervisor、轮询或全树 observer；
 - [ ] renderer cleanup 对称，但恢复流程仍使用完整重启；
 - [ ] 官方连接默认值未改变，凭据未持久化；
 - [ ] 单元、事务、故障回退和隔离 A/B 全部通过；
-- [ ] 稳态没有 codexctl 后台注入进程；
+- [ ] 一次性模式没有后台注入进程；Live 接管结束只保留一个 companion；
 - [ ] 替换边界后没有旧 app-server、renderer 或 modifier monitor 残留；
 - [ ] 文档与实际 CLI、架构和测试结果一致。

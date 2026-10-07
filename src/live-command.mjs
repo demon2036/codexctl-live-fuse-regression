@@ -67,7 +67,8 @@ export async function readLiveStatus(paths) {
 
 function printMutation(value) {
   const transaction = value.result?.transaction;
-  console.log(`PID ${value.appPid} · ${transaction?.kind ?? "no-change"} · ${transaction?.status ?? "unchanged"} · ${value.durationMs.toFixed(1)} ms`);
+  const companion = value.result?.companionPid ? ` · companion ${value.result.companionPid}` : "";
+  console.log(`PID ${value.appPid}${companion} · ${transaction?.kind ?? "no-change"} · ${transaction?.status ?? "unchanged"} · ${value.durationMs.toFixed(1)} ms`);
 }
 
 async function commandStart(paths, args) {
@@ -111,9 +112,8 @@ async function commandReload(paths, args) {
   const all = extractFlag(args, "--all");
   const pluginId = args.shift();
   if (all && pluginId) throw new UsageError("--all 不能和 plugin-id 同时使用。");
-  assertNoArgs(args, "用法：codexctl live reload <plugin-id>|--all");
-  if (!all && !pluginId) throw new UsageError("用法：codexctl live reload <plugin-id>|--all");
-  printMutation(await callActive(paths, "plugin.reload", { pluginId: all ? "all" : pluginId }));
+  assertNoArgs(args, "用法：codexctl live reload [<plugin-id>|--all]");
+  printMutation(await callActive(paths, "plugin.reload", { pluginId: pluginId ?? "all" }));
 }
 
 async function commandDev(paths, args) {

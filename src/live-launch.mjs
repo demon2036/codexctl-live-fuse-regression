@@ -1,9 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { spawn } from "node:child_process";
 import { ConfigError } from "./errors.mjs";
 import { liveHostRevision } from "./live-artifacts.mjs";
-import { connectLiveHost } from "./live-host-client.mjs";
 import {
   liveBootstrapFile,
   readLiveBootstrap,
@@ -16,10 +14,9 @@ import {
   listDesktopProcesses,
 } from "./desktop-processes.mjs";
 import { recordManagedLaunch, removeManagedLaunch, waitForDesktopProcess } from "./launches.mjs";
-import { openPrivateLog } from "./logs.mjs";
 import { planLiveAppLaunch } from "./live-platform.mjs";
 import { discoverDesktop, launchApp } from "./platform.mjs";
-import { sanitizedBaseEnvironment } from "./relay.mjs";
+import { spawnCompanion, terminateCompanion, validateWorkerEvent } from "./live-worker.mjs";
 
 function hasProfile(command, profile) {
   const normalized = path.resolve(profile);
@@ -31,91 +28,6 @@ export function liveStartConflicts(running, isolatedProfile = null) {
   return isolatedProfile
     ? running.filter((row) => hasProfile(row.command, isolatedProfile))
     : running.filter((row) => !/--user-data-dir(?:=|\s)/.test(row.command));
-}
-
-function validateWorkerEvent(value, sessionId) {
-  if (!value || value.schema !== "codexctl-live-worker-event/1"
-    || value.sessionId !== undefined && value.sessionId !== sessionId
-    || !["ready", "paired", "error"].includes(value.phase)) {
-    throw new Error("live companion worker event is invalid");
-  }
-  return value;
-}
-
-async function spawnCompanion(paths, bootstrapFile, env) {
-  const log = await openPrivateLog(paths.liveCompanionLogFile);
-  let child;
-  try {
-    child = spawn(process.execPath, [paths.liveCompanionWorker], {
-      detached: true,
-      env: {
-        ...sanitizedBaseEnvironment(env),
-        CODEXCTL_HOME: paths.home,
-        CODEXCTL_LIVE_BOOTSTRAP: bootstrapFile,
-      },
-      stdio: ["ignore", log.fd, log.fd, "ipc"],
-    });
-    child.unref();
-  } finally {
-    await log.close();
-  }
-  const events = [];
-  const waiters = [];
-  let exit = null;
-  child.on("message", (value) => {
-    const waiter = waiters.shift();
-    if (waiter) waiter.resolve(value);
-    else events.push(value);
-  });
-  child.once("exit", (code, signal) => {
-    exit = { code, signal };
-    for (const waiter of waiters.splice(0)) {
-      waiter.reject(new Error(`live companion exited before pairing (${code ?? signal})`));
-    }
-  });
-  child.once("error", (error) => {
-    exit = { code: null, signal: "spawn-error" };
-    for (const waiter of waiters.splice(0)) waiter.reject(error);
-  });
-  return {
-    child,
-    launch({ appPid, debugPort, sessionId }) {
-      if (!child.connected) throw new Error("live companion IPC closed before App launch");
-      child.send({
-        appPid,
-        debugPort,
-        schema: "codexctl-live-worker-launch/1",
-        sessionId,
-      });
-    },
-    next(timeoutMs = 30_000) {
-      if (events.length) return Promise.resolve(events.shift());
-      if (exit) return Promise.reject(new Error("live companion already exited"));
-      return new Promise((resolve, reject) => {
-        const waiter = {
-          resolve(value) { clearTimeout(timer); resolve(value); },
-          reject(error) { clearTimeout(timer); reject(error); },
-        };
-        const timer = setTimeout(() => {
-          const index = waiters.indexOf(waiter);
-          if (index >= 0) waiters.splice(index, 1);
-          reject(new Error("live companion startup timed out"));
-        }, timeoutMs);
-        waiters.push(waiter);
-      });
-    },
-  };
-}
-
-async function terminateCompanion(child) {
-  if (!child || child.exitCode !== null) return;
-  const exited = new Promise((resolve) => child.once("exit", resolve));
-  child.kill("SIGTERM");
-  const timer = new Promise((resolve) => setTimeout(resolve, 3000, "timeout"));
-  if (await Promise.race([exited, timer]) === "timeout" && child.exitCode === null) {
-    child.kill("SIGKILL");
-    await exited;
-  }
 }
 
 async function waitForLaunched(desktop, launched, isolatedProfile, timeoutMs = 10_000) {
@@ -136,18 +48,7 @@ async function reconnectBootstrapAppPid(paths, bootstrap) {
     const current = await inspectLiveSession(paths, bootstrap.sessionId);
     if (current.live || current.processes.app) return current.session.app.pid;
   } catch {}
-  if (bootstrap.transport === "cdp") return null;
-  let connection = null;
-  try {
-    connection = await connectLiveHost({
-      authToken: bootstrap.authToken,
-      hostRevision: bootstrap.hostRevision,
-      sessionId: bootstrap.sessionId,
-      socketPath: bootstrap.hostSocketPath,
-      timeoutMs: 500,
-    });
-    return connection.host.pid;
-  } catch { return null; } finally { connection?.close(); }
+  return null;
 }
 
 async function reconnectBootstrap(paths, desktop, conflicts) {
@@ -160,10 +61,6 @@ async function reconnectBootstrap(paths, desktop, conflicts) {
     try {
       const bootstrap = await readLiveBootstrap(path.join(paths.liveBootstrapsDir, entry.name));
       if (bootstrap.desktop.executable !== executable) return null;
-      if (bootstrap.transport !== "cdp"
-        && !await fs.stat(bootstrap.hostSocketPath).then((stat) => stat.isSocket()).catch(() => false)) {
-        return null;
-      }
       const appPid = await reconnectBootstrapAppPid(paths, bootstrap);
       return conflicts.some((row) => row.pid === appPid) ? bootstrap : null;
     } catch { return null; }
@@ -173,9 +70,6 @@ async function reconnectBootstrap(paths, desktop, conflicts) {
 }
 
 async function reconnectCompanion(paths, desktop, conflicts, bootstrap, env) {
-  if (await liveHostRevision(paths) !== bootstrap.hostRevision) {
-    throw new ConfigError("运行中的 live host 版本已过期；不能假装热升级宿主核心。");
-  }
   const worker = await spawnCompanion(paths, liveBootstrapFile(paths, bootstrap.sessionId), env);
   try {
     const ready = validateWorkerEvent(await worker.next(), bootstrap.sessionId);

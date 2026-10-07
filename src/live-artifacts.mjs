@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { createHash } from "node:crypto";
 import { compileLiveWallpaperCatalog } from "./live-wallpaper-catalog.mjs";
 import { materializeRuntime } from "./runtime.mjs";
 import {
@@ -9,17 +6,7 @@ import {
 } from "../vendor/prompt-context/injector.mjs";
 import { loadPayload as loadWallpaperPayload } from "../vendor/wallpaper-lite/payload.mjs";
 
-const HOST_FILES = [
-  "live-cdp-host.mjs", "live-host.cjs", "live-host-control.cjs",
-  "live-host-renderer.cjs", "live-host-server.cjs", "live-host-wallpaper.cjs",
-  "renderer-injection.mjs",
-];
-
-export async function liveHostRevision(paths) {
-  const hash = createHash("sha256");
-  for (const name of HOST_FILES) hash.update(await fs.readFile(path.join(paths.projectRoot, "src", name)));
-  return hash.digest("hex").slice(0, 24);
-}
+export { liveCodeRevision as liveHostRevision } from "./live-code.mjs";
 
 function controlsArtifact(loaded) {
   return loaded ? Object.freeze({

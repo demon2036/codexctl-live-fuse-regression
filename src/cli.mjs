@@ -23,8 +23,10 @@ const HELP = `codexctl — Codex Desktop 官方启动、一次性注入与 live 
   codexctl live status [--json]
   codexctl live on|off
   codexctl live plugin list|on|off [plugin-id]
-  codexctl live reload <plugin-id>|--all
+  codexctl live reload [<plugin-id>|--all]
+      重新加载辅助程序及其依赖；不传参数时更新全部插件，Codex App PID 保持不变。
   codexctl live dev <plugin-id> --source PATH [--watch]
+      从新进程加载调试代码；--watch 同时监听项目运行代码和调试资源。
   codexctl live dev stop <plugin-id>
 
   codexctl app
