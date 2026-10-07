@@ -40,9 +40,20 @@ function encoded(value) {
 
 export function wallpaperFixtureHtml({ controlCss, wallpaperPayload }) {
   return `<!doctype html>
-<html><head><meta charset="utf-8"><style>
+<html data-codex-window-type="electron"><head><meta charset="utf-8"><style>
 html, body { margin: 0; }
+:root { --color-surface-tertiary: #181818; }
 #root { display: flex; flex-direction: column; }
+/* Codex 26.930 shell paint: these layers sit outside the main surface. */
+[data-app-shell-frame][data-app-shell-workspace-tab-chrome] {
+  background: color-mix(in srgb, var(--color-surface-tertiary) 70%, transparent);
+}
+[data-app-shell-page-surface="true"] {
+  background: color-mix(in srgb, var(--color-surface-tertiary) 80%, transparent);
+}
+[data-app-shell-page-surface="true"] .sidebar-navigation {
+  background: color-mix(in oklab, var(--color-surface) 65%, transparent);
+}
 #shell { display: flex; flex: 1 1 auto; min-height: 100vh; }
 #docked-sidebar { flex: 0 0 280px; min-width: 0; background: rgb(17,17,17); }
 #docked-main { flex: 1 1 0%; min-width: 0; background: rgb(17,17,17); }
@@ -66,10 +77,12 @@ html, body { margin: 0; }
 }
 ${controlCss}
 </style></head><body><div id="root">
+<div id="app-frame" data-app-shell-frame data-app-shell-page-surface="true">
 <button id="permission">Permissions</button>
 <div id="control-host" class="cbps-control-host">Default · Native</div>
 <div id="shell"><aside id="docked-sidebar" class="app-shell-left-panel">
-<div id="sidebar-scroll" data-app-action-sidebar-scroll></div></aside>
+<div><nav id="sidebar-navigation" class="sidebar-navigation">
+<div id="sidebar-scroll" data-app-action-sidebar-scroll></div></nav></div></aside>
 <section id="docked-main" data-app-shell-main-surface>
 <main id="layout" data-app-shell-main-content-layout>
 <div id="messages" class="thread-scroll-container bg-surface">
@@ -94,6 +107,7 @@ ${controlCss}
 </div></div></main></section></div>
 <aside id="floating-sidebar" data-testid="app-shell-floating-left-panel">
 <div id="floating-inner"></div></aside>
+</div>
 <pre id="result"></pre></div>
 <script>
 (() => {
@@ -133,6 +147,8 @@ ${controlCss}
     planePositionType: getComputedStyle(document.documentElement, "::before").position,
     planeWidth: getComputedStyle(document.documentElement, "::before").width,
     rootAttribute: document.documentElement.getAttribute("data-codexctl-wallpaper"),
+    frameBackground: style("app-frame").backgroundColor,
+    sidebarNavigationBackground: style("sidebar-navigation").backgroundColor,
     mainBackground: style("docked-main").backgroundColor,
     mainImage: style("docked-main").backgroundImage,
     bottomBackground: style("bottom").backgroundColor,
@@ -157,6 +173,11 @@ ${controlCss}
     }])),
   });
   const short = surfaceState("short");
+  node("app-frame").setAttribute("data-app-shell-page-surface", "false");
+  node("app-frame").setAttribute("data-app-shell-workspace-tab-chrome", "true");
+  const tabChromeBackground = style("app-frame").backgroundColor;
+  node("app-frame").removeAttribute("data-app-shell-workspace-tab-chrome");
+  node("app-frame").setAttribute("data-app-shell-page-surface", "true");
   node("messages").style.minHeight = "1400px";
   const long = surfaceState("long");
   node("messages").style.minHeight = "20px";
@@ -220,6 +241,7 @@ ${controlCss}
     hostPointerEvents: getComputedStyle(host).pointerEvents,
     diagnostics: window.__CODEXCTL_WALLPAPER_V2__.diagnostics(),
     states: [short, long, multiline],
+    tabChromeBackground,
     stressDelta: delta,
     forbiddenCss: /:has\\(|backdrop-filter:\\s*blur|filter:\\s+(?:blur|contrast|brightness|drop-shadow)|position:\\s*fixed|background-attachment:\\s*fixed|animation:\\s+(?!none\\b)[a-z]/i.test(wallpaperStyle),
     sidebarLayout: { collapsedMain, expandedMain, expandedSidebar },

@@ -128,7 +128,7 @@ test("wallpaper removes the real thread-scroll bottom surface gradient", async (
   const loaded = await loadPayload(themeDir, { artUrl: "blob:codexctl-test" });
   const css = buildWallpaperCss(loaded.source);
   const threadFadeRule = css.match(
-    /\.thread-scroll-container\s+\.bg-gradient-to-t\.from-surface\.via-surface\s*\{([^}]+)\}/,
+    /\.thread-scroll-container\s+\.bg-gradient-to-t\.from-surface\s*\{([^}]+)\}/,
   );
   assert.ok(threadFadeRule, "real App thread bottom-gradient selector must be present");
   assert.match(threadFadeRule[1], /background-image:\s*none\s*!important/);

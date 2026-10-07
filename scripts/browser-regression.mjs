@@ -78,6 +78,8 @@ function assertWallpaper(result, expectedWidth) {
     timers: 0,
   });
   assert.equal(result.states.length, 3);
+  assertTransparent(result.tabChromeBackground,
+    "WALLPAPER-THEME-SEMANTICS-003: workspace tab frame must not dim the wallpaper");
   for (const state of result.states) {
     assert.equal(state.viewport.width, expectedWidth);
     assert.ok(state.viewport.height >= 400, `unexpected viewport height ${state.viewport.height}`);
@@ -89,6 +91,10 @@ function assertWallpaper(result, expectedWidth) {
     assert.ok(state.documentHeight >= state.viewport.height,
       `${state.label} document did not naturally cover the viewport`);
     assert.equal(state.rootAttribute, "active");
+    assertTransparent(state.frameBackground,
+      "WALLPAPER-THEME-SEMANTICS-003: page surface must not dim the wallpaper");
+    assertTransparent(state.sidebarNavigationBackground,
+      "WALLPAPER-THEME-SEMANTICS-003: sidebar navigation must not stack paint");
     assert.match(state.htmlBackground, /blob:/);
     assert.match(state.htmlBackground, /rgba\(7, 25, 29, 0\.21\)/);
     assert.match(state.htmlPosition, /72% 54%/);

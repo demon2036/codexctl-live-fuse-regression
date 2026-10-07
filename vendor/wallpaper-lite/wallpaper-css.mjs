@@ -35,12 +35,12 @@ export function optimizeWallpaperCss(value) {
 function palette(theme) {
   const { colors } = theme;
   const tuning = theme.tuning ?? {};
-  const overlayOpacity = numberOr(tuning.overlayOpacity, 0.24, 0.02, 0.96);
+  const overlayOpacity = numberOr(tuning.overlayOpacity, 0.24, 0, 0.96);
   const gradientBias = numberOr(tuning.gradientBias, 0, -0.7, 0.7);
-  const edgeOpacity = clamp(overlayOpacity + gradientBias / 2, 0.02, 0.96);
-  const farOpacity = clamp(overlayOpacity - gradientBias / 2, 0.02, 0.96);
+  const edgeOpacity = clamp(overlayOpacity + gradientBias / 2, 0, 0.96);
+  const farOpacity = clamp(overlayOpacity - gradientBias / 2, 0, 0.96);
   const middleOpacity = edgeOpacity + (farOpacity - edgeOpacity) * 0.64;
-  const sidebarOpacity = numberOr(tuning.sidebarOpacity, 0.52, 0.08, 0.96);
+  const sidebarOpacity = numberOr(tuning.sidebarOpacity, 0.52, 0, 0.96);
   const composerOpacity = numberOr(tuning.composerOpacity, 0.82, 0.45, 0.98);
   const surfaceOpacity = clamp(composerOpacity + 0.08, 0.53, 0.98);
   const elevatedOpacity = clamp(composerOpacity + 0.2, 0.65, 0.99);
@@ -99,6 +99,8 @@ html[data-codexctl-wallpaper="active"] :is(body, #root) {
   background-image: none !important;
 }
 html[data-codexctl-wallpaper="active"] :where(
+  [data-app-shell-frame],
+  [data-app-shell-page-surface="true"],
   [data-app-shell-main-surface],
   [data-app-shell-main-content-layout],
   [data-app-shell-focus-area="main"],
@@ -137,6 +139,7 @@ html[data-codexctl-wallpaper="active"] ${SIDEBAR}::after {
   background: transparent !important;
 }
 html[data-codexctl-wallpaper="active"] ${SIDEBAR} > div,
+html[data-codexctl-wallpaper="active"] ${SIDEBAR} .sidebar-navigation,
 html[data-codexctl-wallpaper="active"] ${SIDEBAR} [data-app-action-sidebar-scroll] {
   background-color: transparent !important;
   background-image: none !important;
@@ -187,12 +190,21 @@ html[data-codexctl-wallpaper="active"] ${SIDEBAR} .text-tertiary {
 html[data-codexctl-wallpaper="active"] :is(
   [data-app-shell-focus-area="bottom-panel"],
   [data-app-shell-focus-area="bottom-panel"] .bg-surface,
-  [data-app-shell-main-content-layout] > .bg-surface
+  [data-app-shell-main-content-layout] > .bg-surface,
+  [data-thread-scroll-footer],
+  [data-thread-scroll-footer] > [aria-hidden="true"],
+  [data-app-shell-main-content-top-fade] > [aria-hidden="true"]
 ) {
   background: transparent !important;
 }
+/* The page outline is a separate decorative layer in the current shell. */
 html[data-codexctl-wallpaper="active"]
-  .thread-scroll-container .bg-gradient-to-t.from-surface.via-surface {
+  [data-app-shell-workspace-row] > [aria-hidden="true"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html[data-codexctl-wallpaper="active"]
+  .thread-scroll-container .bg-gradient-to-t.from-surface {
   background-color: transparent !important;
   background-image: none !important;
 }
