@@ -102,6 +102,34 @@ test("macOS official mode exactly matches an icon launch", async (t) => {
   assert.match(injected.environment.CODEXCTL_PRELOAD_RESULT, /preload-result-[a-f0-9-]{36}\.json$/);
 });
 
+test("macOS official mode resolves the unified codex-cli package layout", async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "codexctl-mac-package-"));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const bundle = path.join(directory, "ChatGPT.app");
+  const app = path.join(bundle, "Contents", "MacOS", "ChatGPT");
+  const cli = path.join(
+    bundle, "Contents", "Resources", "codex-cli", "CodexCLI.app", "Contents", "MacOS", "codex",
+  );
+  await fs.mkdir(path.dirname(app), { recursive: true });
+  await fs.mkdir(path.dirname(cli), { recursive: true });
+  await fs.writeFile(app, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  await fs.writeFile(cli, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const config = createDefaultConfig();
+  config.app.path = bundle;
+  const paths = resolvePaths({ HOME: directory, CODEXCTL_HOME: path.join(directory, "state") });
+
+  const discovered = await discoverDesktop(
+    config, { HOME: directory, PATH: "/usr/bin:/bin" }, "darwin",
+  );
+  assert.equal(discovered.officialCli, cli);
+
+  const plan = await planAppLaunch(config, paths, { enabled: false, values: {} }, {
+    inject: false,
+  }, { HOME: directory, PATH: "/usr/bin:/bin" }, "darwin");
+  assert.equal(plan.desktop.officialCli, cli);
+  assert.equal(plan.environment.CODEX_CLI_PATH, cli);
+});
+
 test("Remote-safe launch rejects a PATH CLI source instead of version-skewing the App", async (t) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "codexctl-cli-source-"));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));

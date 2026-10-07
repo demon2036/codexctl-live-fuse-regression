@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { createDefaultConfig } from "../src/defaults.mjs";
+import { macEmbeddedCliCandidates } from "../src/bundle-layout.mjs";
 import { descendantProcessRows, listProcessRows, readProcessRow } from "../src/desktop-processes.mjs";
 import { waitForMacPreloadResult } from "../src/macos-preload-runtime.mjs";
 import { resolvePaths } from "../src/paths.mjs";
@@ -41,11 +42,19 @@ if (process.platform !== "darwin") {
 } else {
   const bundle = process.env.CODEXCTL_TEST_MAC_APP ?? "/Applications/ChatGPT.app";
   const executable = path.join(bundle, "Contents", "MacOS", "ChatGPT");
-  const embeddedCli = path.join(bundle, "Contents", "Resources", "codex");
-  const missing = [];
-  for (const [label, filename] of [["app-bundle", bundle], ["app-executable", executable], ["embedded-cli", embeddedCli]]) {
-    if (!await fs.access(filename).then(() => true).catch(() => false)) missing.push(label);
+  const exists = (filename) => fs.access(filename).then(() => true).catch(() => false);
+  let embeddedCli = null;
+  for (const candidate of macEmbeddedCliCandidates(bundle)) {
+    if (await exists(candidate)) {
+      embeddedCli = candidate;
+      break;
+    }
   }
+  const missing = [];
+  for (const [label, filename] of [["app-bundle", bundle], ["app-executable", executable]]) {
+    if (!await exists(filename)) missing.push(label);
+  }
+  if (!embeddedCli) missing.push("embedded-cli");
   if (missing.length) {
     console.log(JSON.stringify({ actual: false, reasonCodes: missing, status: "unverified" }));
     process.exitCode = 2;

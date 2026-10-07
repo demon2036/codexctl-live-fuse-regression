@@ -45,6 +45,19 @@ test("detachedDesktopHelperRows finds orphan monitors beside a live App", () => 
   );
 });
 
+test("detachedDesktopHelperRows reclaims app-server under both CLI layouts", () => {
+  const bundle = "/Applications/ChatGPT.app";
+  const desktop = { bundle, executable: `${bundle}/Contents/MacOS/ChatGPT` };
+  const unified = `${bundle}/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex app-server`;
+  const legacy = `${bundle}/Contents/Resources/codex app-server`;
+
+  assert.deepEqual(
+    detachedDesktopHelperRows([row(104, 1, unified), row(105, 1, legacy)], desktop)
+      .map(({ pid }) => pid),
+    [104, 105],
+  );
+});
+
 test("detachedDesktopHelperRows reclaims crash handlers only without a main App", () => {
   const bundle = "/Applications/ChatGPT.app";
   const crashpad = `${bundle}/Contents/Frameworks/Codex Framework.framework/Helpers/`

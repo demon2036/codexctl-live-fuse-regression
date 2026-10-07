@@ -5,6 +5,7 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { ConfigError } from "./errors.mjs";
+import { macEmbeddedCliCandidates } from "./bundle-layout.mjs";
 import { applyRelayEnvironment, sanitizedBaseEnvironment } from "./relay.mjs";
 import { ensurePrivateDirectory, redactSecret } from "./util.mjs";
 import { allocateLoopbackPort } from "./ports.mjs";
@@ -136,9 +137,8 @@ async function discoverMacApp(config, env) {
       path.join(bundle, "Contents", "MacOS", "Codex"),
     ]);
     if (!executable) continue;
-    const officialCli = config.app.cliPath ?? await firstExecutable([
-      path.join(bundle, "Contents", "Resources", "codex"),
-    ]);
+    const officialCli = config.app.cliPath
+      ?? await firstExecutable(macEmbeddedCliCandidates(bundle));
     return { bundle, executable, officialCli };
   }
   throw new ConfigError("找不到 Codex/ChatGPT macOS App；可在 config.json 设置 app.path。" );
@@ -199,9 +199,8 @@ export async function planAppLaunch(config, paths, relay, options = {}, env = pr
     throw new ConfigError("Remote-safe 启动必须使用 App 内置 codex CLI。");
   }
   if (platform === "darwin") {
-    const embeddedCli = desktop.bundle && await firstExecutable([
-      path.join(desktop.bundle, "Contents", "Resources", "codex"),
-    ]);
+    const embeddedCli = desktop.bundle
+      && await firstExecutable(macEmbeddedCliCandidates(desktop.bundle));
     if (!embeddedCli) throw new ConfigError("Remote-safe macOS 启动缺少 App 内置 codex CLI。");
     desktop = { ...desktop, officialCli: embeddedCli };
   }

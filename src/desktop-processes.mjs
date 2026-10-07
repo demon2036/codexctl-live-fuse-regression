@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { macEmbeddedCliCandidates } from "./bundle-layout.mjs";
 import {
   descendantProcessRows,
   listProcessRows,
@@ -67,13 +68,17 @@ export function detachedDesktopHelperCommandMatches(command, desktop) {
     "bare-modifier-monitor",
   );
   const value = String(command);
-  const appServer = path.join(bundle, "Contents", "Resources", "codex");
   return value === modifierMonitor
     || value.startsWith(`${modifierMonitor} `)
-    || value === `${appServer} app-server`
-    || value.startsWith(`${appServer} app-server `)
+    || appServerCommandMatches(command, bundle)
     || (value.startsWith(`${path.join(bundle, "Contents", "Frameworks")}${path.sep}`)
       && value.includes(`${path.sep}browser_crashpad_handler `));
+}
+
+function appServerCommandMatches(command, bundle) {
+  const value = String(command);
+  return macEmbeddedCliCandidates(bundle).some((cli) =>
+    value === `${cli} app-server` || value.startsWith(`${cli} app-server `));
 }
 
 export function relatedMacDesktopBundles(desktop) {
@@ -112,14 +117,13 @@ export function detachedDesktopHelperRows(rows, desktop) {
       for (const descendant of descendantProcessRows(rows, main.pid)) familyPids.add(descendant.pid);
     }
     const monitor = path.join(bundle, "Contents", "Resources", "native", "bare-modifier-monitor");
-    const appServer = path.join(bundle, "Contents", "Resources", "codex");
     const frameworks = path.join(bundle, "Contents", "Frameworks") + path.sep;
     return rows.filter((row) => {
       const command = String(row.command);
       if (command === monitor || command.startsWith(`${monitor} `)) {
         return !familyPids.has(row.ppid);
       }
-      if (command === `${appServer} app-server` || command.startsWith(`${appServer} app-server `)) {
+      if (appServerCommandMatches(command, bundle)) {
         return !familyPids.has(row.ppid);
       }
       return mainPids.size === 0 && command.startsWith(frameworks)
